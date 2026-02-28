@@ -12,6 +12,7 @@ import HistoricalImportModal from './HistoricalImportModal';
 import EmptyState from './EmptyState';
 import ChartsView from './ChartsView';
 import AnalysisTab from './AnalysisTab';
+import InvestmentChatbot from './InvestmentChatbot';
 import { SummarySkeleton, TableSkeleton } from './LoadingSkeleton';
 import type { Holding, HoldingWithMetrics, AssetType } from '@/lib/types';
 
@@ -38,6 +39,7 @@ export default function Dashboard({ initialHoldings }: Props) {
   const [clearConfirmText, setClearConfirmText] = useState('');
   const [activeView, setActiveView] = useState<'portfolio' | 'charts' | 'analysis'>('portfolio');
   const [moverFilter, setMoverFilter] = useState<'gainers' | 'losers' | null>(null);
+  const [lang, setLang] = useState<'en' | 'zh-TW'>('zh-TW');
   const [adminOpen, setAdminOpen] = useState(false);
   const adminRef = useRef<HTMLDivElement>(null);
   const stickyBandRef = useRef<HTMLDivElement>(null);
@@ -392,7 +394,7 @@ export default function Dashboard({ initialHoldings }: Props) {
         ) : activeView === 'charts' ? (
           <ChartsView holdings={holdingsWithMetrics} />
         ) : (
-          <AnalysisTab holdings={holdingsWithMetrics} />
+          <AnalysisTab holdings={holdingsWithMetrics} lang={lang} onLangChange={setLang} />
         )}
       </main>
 
@@ -420,6 +422,9 @@ export default function Dashboard({ initialHoldings }: Props) {
           onImportComplete={handleHistoricalImportComplete}
         />
       )}
+
+      {/* Investment advisor chatbot */}
+      <InvestmentChatbot holdings={holdingsWithMetrics} totals={totals} lang={lang} />
 
       {/* Clear all confirmation modal */}
       {clearModalOpen && (

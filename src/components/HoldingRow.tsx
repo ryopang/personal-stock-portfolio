@@ -206,7 +206,7 @@ export function HoldingCard({ holding, onEdit, onDelete }: Props) {
           <p className="text-2xl font-bold text-primary tabular-nums">
             {formatCurrency(holding.currentValue)}
           </p>
-          <p className="text-xs text-secondary mt-0.5">
+          <p className="text-xs text-secondary mt-0.5 privacy-blur">
             {formatQuantity(holding.quantity)} × {formatCurrency(holding.currentPrice)}
           </p>
         </div>
@@ -221,20 +221,56 @@ export function HoldingCard({ holding, onEdit, onDelete }: Props) {
         </div>
       </div>
 
-      {/* Cost basis + total gain */}
-      <div className="flex items-center justify-between pt-2 border-t border-border">
-        <div>
+      {/* Cost basis + total gain + 52W range — all one row */}
+      <div className="flex items-center justify-between gap-3 pt-2 border-t border-border">
+        <div className="shrink-0">
           <p className="text-xs text-secondary">Avg cost</p>
           <p className="text-sm text-primary tabular-nums">{formatCurrency(holding.costBasis)}</p>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-secondary">Total gain/loss</p>
-          <PriceChange
-            value={holding.totalGain}
-            percent={holding.totalGainPercent}
-            format="both"
-            size="sm"
-          />
+        <div className="flex items-center gap-6 min-w-0">
+          <div className="text-right shrink-0">
+            <p className="text-xs text-secondary">Total gain/loss</p>
+            <PriceChange
+              value={holding.totalGain}
+              percent={holding.totalGainPercent}
+              format="both"
+              size="sm"
+            />
+          </div>
+          {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null && (() => {
+            const range = holding.fiftyTwoWeekHigh - holding.fiftyTwoWeekLow;
+            const rawPct = range > 0 ? ((holding.currentPrice - holding.fiftyTwoWeekLow) / range) * 100 : 50;
+            const pct = Math.max(2, Math.min(98, rawPct));
+            return (
+              <div className="w-16 shrink-0">
+                <div className="mb-1.5">
+                  <span className="text-[10px] text-secondary">52W</span>
+                </div>
+                <div className="relative w-full h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-full"
+                    style={{ width: `${pct}%`, backgroundColor: 'var(--color-accent)' }}
+                  />
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full"
+                    style={{
+                      left: `calc(${pct}% - 5px)`,
+                      backgroundColor: 'var(--color-accent)',
+                      boxShadow: '0 0 0 2px var(--color-surface)',
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-[9px] tabular-nums text-secondary">
+                    {holding.fiftyTwoWeekLow >= 1000 ? formatCurrencyK(holding.fiftyTwoWeekLow) : formatCurrencyWhole(holding.fiftyTwoWeekLow)}
+                  </span>
+                  <span className="text-[9px] tabular-nums text-secondary">
+                    {holding.fiftyTwoWeekHigh >= 1000 ? formatCurrencyK(holding.fiftyTwoWeekHigh) : formatCurrencyWhole(holding.fiftyTwoWeekHigh)}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

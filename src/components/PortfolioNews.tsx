@@ -38,9 +38,10 @@ interface Props {
   holdings: HoldingWithMetrics[];
   lang: 'en' | 'zh-TW';
   filterSymbol: string;
+  onFilterChange: (symbol: string) => void;
 }
 
-export default function PortfolioNews({ holdings, lang, filterSymbol }: Props) {
+export default function PortfolioNews({ holdings, lang, filterSymbol, onFilterChange }: Props) {
 
   // "All" mode: paginated articles
   const [articles, setArticles] = useState<NewsItem[]>([]);
@@ -140,8 +141,22 @@ export default function PortfolioNews({ holdings, lang, filterSymbol }: Props) {
 
   return (
     <div className="flex flex-col h-full overflow-hidden space-y-3">
-      <div className="flex items-center px-1 py-1.5 shrink-0">
-        <p className="text-xs font-semibold uppercase tracking-wide text-secondary">Portfolio News</p>
+      <div className="flex items-center justify-between px-1 shrink-0 gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-secondary whitespace-nowrap shrink-0">Portfolio News</p>
+        <select
+          value={filterSymbol}
+          onChange={(e) => onFilterChange(e.target.value)}
+          className="text-xs font-medium rounded-lg border border-border bg-surface text-primary px-2.5 py-1 outline-none cursor-pointer transition-colors"
+        >
+          <option value="all">All Holdings</option>
+          {[...new Map(holdings.map((h) => [h.symbol, h])).values()]
+            .sort((a, b) => a.symbol.localeCompare(b.symbol))
+            .map((h) => (
+              <option key={h.symbol} value={h.symbol}>
+                {h.symbol}
+              </option>
+            ))}
+        </select>
       </div>
       <div className="thin-scroll flex-1 min-h-0 overflow-y-auto space-y-3 pr-1.5">
         {loading ? (

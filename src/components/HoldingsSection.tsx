@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { HoldingTableRow, HoldingCard } from './HoldingRow';
 import { TableSkeleton } from './LoadingSkeleton';
 import PriceChange from './PriceChange';
@@ -155,6 +155,20 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
     return Object.entries(counts).sort(([, a], [, b]) => b - a);
   }, [filtered]);
 
+  const showFilterBar = availableTabs.length > 2 || (industryCounts.length > 0 && filtered.length > 0);
+
+  // Keep --filter-bar-height in sync so the sticky thead can sit below the filter bar
+  useEffect(() => {
+    const el = filterBarRef.current;
+    const setVar = (h: number) =>
+      document.documentElement.style.setProperty('--filter-bar-height', `${h}px`);
+    if (!el || !showFilterBar) { setVar(0); return; }
+    setVar(el.offsetHeight);
+    const ro = new ResizeObserver(() => setVar(el.offsetHeight));
+    ro.observe(el);
+    return () => { ro.disconnect(); setVar(0); };
+  }, [showFilterBar]);
+
   if (isLoading && holdings.length === 0) {
     return <TableSkeleton rows={5} />;
   }
@@ -162,49 +176,53 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
   return (
     <div>
       {/* Tab bar + industry chips on the same row */}
-      {(availableTabs.length > 2 || (industryCounts.length > 0 && filtered.length > 0)) && (
+      {showFilterBar && (
         <div
           ref={filterBarRef}
-          className="flex flex-wrap items-center gap-1 pb-3 mb-1 sticky z-30"
+          className="flex flex-col md:flex-row md:items-center gap-1 pb-3 mb-1 sticky z-30"
           style={{ top: 'var(--sticky-top, 0px)', backgroundColor: 'var(--color-background)' }}
         >
-          {/* Type tabs */}
-          {availableTabs.length > 2 && availableTabs.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => { setActiveTab(tab.value); setActiveIndustry(null); }}
-              className={`inline-flex items-center whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                activeTab === tab.value
-                  ? 'bg-primary text-surface'
-                  : 'text-secondary hover:text-primary hover:bg-surface-secondary'
-              }`}
-              style={{ touchAction: 'manipulation' }}
-            >
-              {tab.label}
-              {tab.value !== 'all' && typeCounts[tab.value] != null && (
-                <span
-                  className="ml-1.5 text-[10px] tabular-nums font-semibold px-1 py-px rounded-full leading-none"
-                  style={{
-                    backgroundColor: activeTab === tab.value ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-secondary)',
-                    color: activeTab === tab.value ? 'inherit' : 'var(--color-secondary)',
-                  }}
+          {/* Type tabs — scrollable on mobile */}
+          {availableTabs.length > 2 && (
+            <div className="flex items-center gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              {availableTabs.map((tab) => (
+                <button
+                  key={tab.value}
+                  onClick={() => { setActiveTab(tab.value); setActiveIndustry(null); }}
+                  className={`inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    activeTab === tab.value
+                      ? 'bg-primary text-surface'
+                      : 'text-secondary hover:text-primary hover:bg-surface-secondary'
+                  }`}
+                  style={{ touchAction: 'manipulation' }}
                 >
-                  {typeCounts[tab.value]}
-                </span>
-              )}
-            </button>
-          ))}
+                  {tab.label}
+                  {tab.value !== 'all' && typeCounts[tab.value] != null && (
+                    <span
+                      className="ml-1.5 text-[10px] tabular-nums font-semibold px-1 py-px rounded-full leading-none"
+                      style={{
+                        backgroundColor: activeTab === tab.value ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-secondary)',
+                        color: activeTab === tab.value ? 'inherit' : 'var(--color-secondary)',
+                      }}
+                    >
+                      {typeCounts[tab.value]}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
 
-          {/* Industry chips — right-aligned */}
+          {/* Industry chips — scrollable on mobile, right-aligned on desktop */}
           {industryCounts.length > 0 && filtered.length > 0 && (
-            <div className="flex items-center gap-1 ml-auto">
+            <div className="flex items-center gap-1 overflow-x-auto md:ml-auto" style={{ scrollbarWidth: 'none' }}>
               {industryCounts.map(([industry, count]) => {
                 const isActive = activeIndustry === industry;
                 return (
                   <button
                     key={industry}
                     onClick={() => setActiveIndustry(isActive ? null : industry)}
-                    className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${!isActive ? 'chip-industry' : ''}`}
+                    className={`inline-flex items-center shrink-0 gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${!isActive ? 'chip-industry' : ''}`}
                     style={{
                       backgroundColor: isActive ? 'var(--color-accent)' : undefined,
                       touchAction: 'manipulation',
@@ -239,10 +257,13 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden md:block card" style={{ overflow: 'hidden' }}>
-            <div className="overflow-x-auto">
+          <div className="hidden md:block card" style={{ overflow: 'clip' }}>
+            <div
+              className="overflow-auto"
+              style={{ maxHeight: 'calc(100dvh - var(--sticky-top, 0px) - var(--filter-bar-height, 0px) - 2rem)' }}
+            >
             <table style={{ minWidth: 'max-content', width: '100%' }}>
-              <thead>
+              <thead className="sticky z-20" style={{ top: 0 }}>
                 <tr className="border-b border-border" style={{ backgroundColor: 'var(--color-surface)' }}>
                   {TABLE_HEADERS.map((h) => (
                     <th

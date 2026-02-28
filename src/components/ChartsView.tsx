@@ -69,36 +69,42 @@ const CHART_MODES: { id: ChartMode; label: string }[] = [
   { id: 'return', label: 'Total Return %' },
 ];
 
-const TIME_RANGE_LABELS: Record<string, string> = {
-  all: 'All', 'this-week': 'Current Week', 'this-month': 'Current Month',
-  'last-month': 'Last Month', ytd: 'YTD',
-};
+function rangeLabel(r: string): string {
+  const map: Record<string, string> = {
+    today: 'Today', '1w': '1W', '1m': '1M', '3m': '3M', '6m': '6M', ytd: 'YTD', max: 'MAX',
+  };
+  if (map[r]) return map[r];
+  if (/^\d{4}$/.test(r)) return `${r.slice(2)}'`;
+  return r;
+}
 
 function filterByTimeRange(snaps: DailySnapshot[], range: string): DailySnapshot[] {
-  if (range === 'all') return snaps;
+  if (range === 'max') return snaps;
   const now = new Date();
   const p = (n: number) => String(n).padStart(2, '0');
+  const dateStr = (d: Date) => `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 
-  if (range === 'this-week') {
-    const day = now.getDay();
-    const mon = new Date(now);
-    mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-    const cutoff = `${mon.getFullYear()}-${p(mon.getMonth() + 1)}-${p(mon.getDate())}`;
-    return snaps.filter(s => s.date >= cutoff);
+  if (range === 'today') {
+    const today = dateStr(now);
+    return snaps.filter(s => s.date === today);
   }
-  if (range === 'this-month') {
-    const cutoff = `${now.getFullYear()}-${p(now.getMonth() + 1)}-01`;
-    return snaps.filter(s => s.date >= cutoff);
+  if (range === '1w') {
+    const cutoff = new Date(now); cutoff.setDate(now.getDate() - 7);
+    return snaps.filter(s => s.date >= dateStr(cutoff));
   }
-  if (range === 'last-month') {
-    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const start = `${d.getFullYear()}-${p(d.getMonth() + 1)}-01`;
-    const end = `${now.getFullYear()}-${p(now.getMonth() + 1)}-01`;
-    return snaps.filter(s => s.date >= start && s.date < end);
+  if (range === '1m') {
+    const cutoff = new Date(now); cutoff.setMonth(now.getMonth() - 1);
+    return snaps.filter(s => s.date >= dateStr(cutoff));
   }
-  if (range === 'ytd') {
-    return snaps.filter(s => s.date >= `${now.getFullYear()}-01-01`);
+  if (range === '3m') {
+    const cutoff = new Date(now); cutoff.setMonth(now.getMonth() - 3);
+    return snaps.filter(s => s.date >= dateStr(cutoff));
   }
+  if (range === '6m') {
+    const cutoff = new Date(now); cutoff.setMonth(now.getMonth() - 6);
+    return snaps.filter(s => s.date >= dateStr(cutoff));
+  }
+  if (range === 'ytd') return snaps.filter(s => s.date >= `${now.getFullYear()}-01-01`);
   // year e.g. '2024'
   return snaps.filter(s => s.date.startsWith(range));
 }
@@ -247,20 +253,21 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
   }
 
   const xLabelIdxs = (() => {
-    if (timeRange === 'all')
-      return midpointsByKey(s => {
-        const [yyyy, mm] = s.date.slice(0, 7).split('-');
-        return `${yyyy}-Q${Math.ceil(Number(mm) / 3)}`;
-      });
+    if (timeRange === 'max')
+      return midpointsByKey(s => s.date.slice(0, 4));
     if (/^\d{4}$/.test(timeRange))
       return midpointsByKey(s => s.date.slice(0, 7));
-    if (timeRange === 'this-week')
+    if (timeRange === 'today' || timeRange === '1w')
       return midpointsByKey(s => s.date);
-    if (timeRange === 'this-month' || timeRange === 'last-month' || timeRange === 'ytd')
+    if (timeRange === '1m') {
+      const firstMs = filtered.length ? new Date(filtered[0].date + 'T12:00:00').getTime() : 0;
       return midpointsByKey(s => {
-        const w = Math.ceil(Number(s.date.slice(8, 10)) / 7);
-        return `${s.date.slice(0, 7)}-W${w}`;
+        const wk = Math.floor((new Date(s.date + 'T12:00:00').getTime() - firstMs) / (7 * 86400000)) + 1;
+        return `week-${wk}`;
       });
+    }
+    if (timeRange === '3m' || timeRange === '6m' || timeRange === 'ytd')
+      return midpointsByKey(s => s.date.slice(0, 7));
     const labelCount = Math.min(n, 7);
     return Array.from({ length: labelCount }, (_, i) =>
       Math.round(i * (n - 1) / (labelCount - 1)),
@@ -268,22 +275,20 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
   })();
   function fmtDate(d: string) {
     const dt = new Date(d + 'T12:00:00');
-    if (timeRange === 'this-week')
-      return dt.toLocaleDateString('en-US', { weekday: 'short' });
-    if (timeRange === 'this-month' || timeRange === 'last-month')
+    if (timeRange === 'today')
       return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (timeRange === 'ytd') {
-      const mon = dt.toLocaleDateString('en-US', { month: 'short' });
-      const wk = Math.ceil(dt.getDate() / 7);
-      return `${mon} W${wk}`;
+    if (timeRange === '1w')
+      return dt.toLocaleDateString('en-US', { weekday: 'short' });
+    if (timeRange === '1m') {
+      const firstMs = filtered.length ? new Date(filtered[0].date + 'T12:00:00').getTime() : dt.getTime();
+      const wk = Math.floor((dt.getTime() - firstMs) / (7 * 86400000)) + 1;
+      return `Week ${wk}`;
     }
+    if (timeRange === '3m' || timeRange === '6m' || timeRange === 'ytd')
+      return dt.toLocaleDateString('en-US', { month: 'short' });
     if (/^\d{4}$/.test(timeRange))
       return dt.toLocaleDateString('en-US', { month: 'short' });
-    // 'all': YY-Q1/Q2/Q3/Q4
-    const mm = dt.getMonth(); // 0-based
-    const q = mm < 3 ? 'Q1' : mm < 6 ? 'Q2' : mm < 9 ? 'Q3' : 'Q4';
-    const yy = String(dt.getFullYear()).slice(2);
-    return `${yy}-${q}`;
+    return String(dt.getFullYear());
   }
 
   const hovSnap = hoverIdx !== null ? filtered[hoverIdx] : null;
@@ -316,27 +321,12 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
 
   return (
     <div className="card p-6">
-      {/* Row 1: mode toggles (left) + time range (right) */}
-      <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
-        <div className="flex gap-1.5">
-          {CHART_MODES.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setMode(id)}
-              className="inline-flex items-center justify-center px-3.5 py-1 rounded-full text-xs font-medium transition-all"
-              style={{
-                backgroundColor: mode === id ? 'var(--color-accent)' : 'var(--color-surface-secondary)',
-                color: mode === id ? '#fff' : 'var(--color-secondary)',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      {/* Controls row: mode toggles + time range pills in one line */}
+      <div className="flex items-center justify-between gap-2 mb-3">
         <select
-          value={timeRange}
-          onChange={e => { setTimeRange(e.target.value); setHoverIdx(null); }}
-          className="text-xs font-medium rounded-lg px-2.5 py-1 outline-none"
+          value={mode}
+          onChange={e => setMode(e.target.value as ChartMode)}
+          className="text-xs font-medium rounded-lg px-2.5 py-1 outline-none shrink-0"
           style={{
             backgroundColor: 'var(--color-surface-secondary)',
             color: 'var(--color-primary)',
@@ -344,10 +334,25 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
             cursor: 'pointer',
           }}
         >
-          {(['all', 'this-week', 'this-month', 'last-month', 'ytd', ...years] as string[]).map(r => (
-            <option key={r} value={r}>{TIME_RANGE_LABELS[r] ?? r}</option>
+          {CHART_MODES.map(({ id, label }) => (
+            <option key={id} value={id}>{label}</option>
           ))}
         </select>
+        <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          {(['1w', '1m', '3m', '6m', 'ytd', ...years, 'max'] as string[]).map(r => (
+            <button
+              key={r}
+              onClick={() => { setTimeRange(r); setHoverIdx(null); }}
+              className="px-2.5 py-1 rounded-full text-xs font-medium transition-all shrink-0"
+              style={{
+                backgroundColor: timeRange === r ? 'var(--color-accent)' : 'var(--color-surface-secondary)',
+                color: timeRange === r ? '#fff' : 'var(--color-secondary)',
+              }}
+            >
+              {rangeLabel(r)}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Period summary */}
@@ -365,7 +370,7 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
         <span className="text-sm font-semibold tabular-nums" style={{ color: periodColor }}>
           {fmtPeriodChange(periodChange, periodChangePct)}
         </span>
-        <span className="text-xs text-secondary">{TIME_RANGE_LABELS[timeRange] ?? timeRange}</span>
+        <span className="text-xs text-secondary">{rangeLabel(timeRange)}</span>
       </div>
 
       {/* SVG line chart */}
@@ -583,16 +588,34 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
     const dt = d.includes('T') ? new Date(d) : new Date(d + 'T12:00:00');
     if (range === 'Today')                 return dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
     if (range === '1W')                    return dt.toLocaleDateString('en-US', { weekday: 'short' });
-    if (range === '1M')                    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (range === '3M' || range === '6M')  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (range === 'YTD' || range === '1Y') return dt.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    if (range === '1M') {
+      const firstMs = points.length ? new Date(points[0].date.includes('T') ? points[0].date : points[0].date + 'T12:00:00').getTime() : dt.getTime();
+      const wk = Math.floor((dt.getTime() - firstMs) / (7 * 86400000)) + 1;
+      return `Week ${wk}`;
+    }
+    if (range === '3M' || range === '6M' || range === 'YTD' || range === '1Y')
+      return dt.toLocaleDateString('en-US', { month: 'short' });
     return String(dt.getFullYear());
   }
 
-  const xLabelCount = Math.min(n, 6);
-  const xLabelIdxs = n <= 1 ? [0] : Array.from({ length: xLabelCount }, (_, i) =>
-    Math.round(i * (n - 1) / (xLabelCount - 1)),
-  );
+  const xLabelIdxs = (() => {
+    if (n <= 1) return [0];
+    if (range === 'YTD' || range === '1Y' || range === '3M' || range === '6M' || range === 'MAX' || range === '5Y') {
+      // One label per unique month (or year for MAX/5Y), at the midpoint of each group
+      const keyFn = (range === 'MAX' || range === '5Y')
+        ? (d: string) => d.slice(0, 4)   // YYYY
+        : (d: string) => d.slice(0, 7);  // YYYY-MM
+      const groups = new Map<string, { first: number; last: number }>();
+      points.forEach((p, i) => {
+        const key = keyFn(p.date);
+        const g = groups.get(key);
+        groups.set(key, g ? { first: g.first, last: i } : { first: i, last: i });
+      });
+      return [...groups.values()].map(({ first, last }) => Math.round((first + last) / 2));
+    }
+    const count = range === '1M' ? Math.min(n, 4) : Math.min(n, 6);
+    return Array.from({ length: count }, (_, i) => Math.round(i * (n - 1) / (count - 1)));
+  })();
 
   function changeFromStart(close: number) {
     if (!firstClose) return { dollar: 0, pct: 0 };
@@ -605,11 +628,11 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
   return (
     <div className="card p-6 no-privacy">
       {/* Controls row */}
-      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+      <div className="flex items-center justify-between gap-2 mb-4">
         <select
           value={selectedSymbol}
           onChange={e => { setSelectedSymbol(e.target.value); setHoverIdx(null); }}
-          className="text-sm font-semibold rounded-lg px-3 py-1.5 outline-none"
+          className="text-xs font-medium rounded-lg px-2.5 py-1 outline-none shrink-0"
           style={{
             backgroundColor: 'var(--color-surface-secondary)',
             color: 'var(--color-primary)',
@@ -618,16 +641,16 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
           }}
         >
           {uniqueHoldings.map(h => (
-            <option key={h.symbol} value={h.symbol}>{h.symbol} — {h.name}</option>
+            <option key={h.symbol} value={h.symbol}>{h.symbol}</option>
           ))}
         </select>
 
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           {STOCK_RANGES.map(r => (
             <button
               key={r}
               onClick={() => { setRange(r); setHoverIdx(null); }}
-              className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+              className="px-2.5 py-1 rounded-full text-xs font-medium transition-all shrink-0"
               style={{
                 backgroundColor: range === r ? 'var(--color-accent)' : 'var(--color-surface-secondary)',
                 color: range === r ? '#fff' : 'var(--color-secondary)',
@@ -765,6 +788,15 @@ interface Props { holdings: HoldingWithMetrics[]; }
 export default function ChartsView({ holdings }: Props) {
   const [hovered, setHovered] = useState<string | null>(null);
   const [selectedIndustries, setSelectedIndustries] = useState<Set<string>>(new Set());
+  const [isPrivate, setIsPrivate] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsPrivate(document.documentElement.classList.contains('privacy-mode'));
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   function toggleIndustry(industry: string) {
     setSelectedIndustries(prev => {
@@ -819,11 +851,11 @@ export default function ChartsView({ holdings }: Props) {
           Industry Distribution
         </h2>
 
-        <div className="flex gap-8 items-start">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start">
 
           {/* ── Donut chart ── */}
-          <div className="shrink-0">
-            <svg width={324} height={324} viewBox="0 0 360 360">
+          <div className="shrink-0 w-full max-w-[280px] md:w-[324px]">
+            <svg width="100%" viewBox="0 0 360 360" style={{ display: 'block' }}>
               {slices.map((slice) => {
                 const selected = selectedIndustries.has(slice.industry);
                 return (
@@ -846,7 +878,13 @@ export default function ChartsView({ holdings }: Props) {
                 <>
                   <text x={cx} y={cy - 15} textAnchor="middle" fontSize={14} style={{ fill: 'var(--color-secondary)' }}>{hoveredSlice.industry}</text>
                   <text x={cx} y={cy + 10} textAnchor="middle" fontSize={24} fontWeight="700" style={{ fill: 'var(--color-primary)' }}>{hoveredSlice.percent.toFixed(1)}%</text>
-                  <text x={cx} y={cy + 32} textAnchor="middle" fontSize={14} style={{ fill: 'var(--color-secondary)' }}>{formatCurrencyK(hoveredSlice.value)}</text>
+                  <text x={cx} y={cy + 32} textAnchor="middle" fontSize={14}
+                    style={{
+                      fill: 'var(--color-secondary)',
+                      filter: isPrivate ? 'blur(6px)' : 'none',
+                      transition: 'filter 0.15s',
+                    }}
+                  >{formatCurrencyK(hoveredSlice.value)}</text>
                 </>
               ) : (
                 <>
@@ -858,8 +896,8 @@ export default function ChartsView({ holdings }: Props) {
           </div>
 
           {/* ── Legend table ── */}
-          <div className="flex-1 min-w-0">
-            <table className="w-full text-sm border-collapse">
+          <div className="flex-1 min-w-0 w-full overflow-x-auto">
+            <table className="w-full text-sm border-collapse" style={{ minWidth: 360 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <th className="text-left pb-2 pr-4 text-xs font-semibold text-secondary uppercase tracking-wide whitespace-nowrap">Industry</th>
