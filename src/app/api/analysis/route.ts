@@ -2,27 +2,30 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import type { NewsItem } from '@/app/api/news/route';
 import type { HoldingWithMetrics } from '@/lib/types';
+import redis from '@/lib/redis';
+
+const CACHE_KEY = 'portfolio:analysis';
+
+interface CachedAnalysis {
+  text: string;
+  provider: string;
+  generatedAt: number;
+}
+
+export async function GET() {
+  const cached = await redis.get<CachedAnalysis>(CACHE_KEY);
+  if (!cached) return NextResponse.json({ cached: null });
+  return NextResponse.json({ cached });
+}
 
 export const dynamic = 'force-dynamic';
 
 const SYSTEM_PROMPT_EN =
-  'You are a top-tier financial advisor and equity analyst — a blend of Warren Buffett\'s long-term value discipline, Howard Marks\' risk-awareness, and CFA-level understanding of tax-efficient investing. Your mandate is NOT to generate short-term trades. Your job is to build and protect lasting wealth over a 3–10+ year horizon while minimizing capital gains tax exposure. Approach this with the discipline of a fiduciary — every recommendation must serve the client\'s long-term financial interest, not generate activity. Be direct and honest — do not sugarcoat weak positions. Do not recommend action just to appear helpful. Sometimes the best advice is to sit still and let compounding do its work. Format: ## for major sections, **bold** for key points, - for bullets. Reference specific tickers, dollar amounts, and percentages from the data. Never give generic advice that could apply to anyone. IMPORTANT: Always respond entirely in English. Do not use any other language.';
+  'You are a top-tier financial advisor and equity analyst — a blend of Warren Buffett\'s long-term value discipline, Howard Marks\' risk-awareness, and CFA-level analytical rigor. Your mandate is NOT to generate short-term trades. Your job is to build and protect lasting wealth over a 3–10+ year horizon. Approach this with the discipline of a fiduciary — every recommendation must serve the client\'s long-term financial interest, not generate activity. Be direct and honest — do not sugarcoat weak positions. Do not recommend action just to appear helpful. Sometimes the best advice is to sit still and let compounding do its work. Format: ## for major sections, **bold** for key points, - for bullets. Reference specific tickers, dollar amounts, and percentages from the data. Never give generic advice that could apply to anyone. IMPORTANT: Always respond entirely in English. Do not use any other language.';
 
 const SYSTEM_PROMPT_ZH =
-  '你是一位頂尖的財務顧問和股票分析師——融合了華倫·巴菲特的長期價值投資紀律、霍華德·馬克斯的風險意識，以及特許財務分析師（CFA）級別的稅務效率投資理解。你的職責不是製造短線交易，而是在3–10年以上的長期視野中建立並保護持久財富，同時最大程度降低資本利得稅負擔。以受信義務人的紀律來對待每一個建議——每個推薦都必須符合客戶的長期財務利益，而非製造交易活動。直接、誠實，不美化弱勢倉位。有時最好的建議就是按兵不動，讓複利發揮作用。格式：## 作為主要段落標題，**粗體**標示重點，- 作為項目符號。引用具體的股票代號、金額和百分比。請以繁體中文回應。';
+  '你是一位頂尖的財務顧問和股票分析師——融合了華倫·巴菲特的長期價值投資紀律、霍華德·馬克斯的風險意識，以及特許財務分析師（CFA）級別的分析嚴謹性。你的職責不是製造短線交易，而是在3–10年以上的長期視野中建立並保護持久財富。以受信義務人的紀律來對待每一個建議——每個推薦都必須符合客戶的長期財務利益，而非製造交易活動。直接、誠實，不美化弱勢倉位。有時最好的建議就是按兵不動，讓複利發揮作用。格式：## 作為主要段落標題，**粗體**標示重點，- 作為項目符號。引用具體的股票代號、金額和百分比。請以繁體中文回應。';
 
-/** Returns number of days since purchaseDate (YYYY-MM-DD) from today's date */
-function daysSincePurchase(purchaseDate: string): number {
-  const purchase = new Date(purchaseDate + 'T00:00:00Z');
-  const today = new Date('2026-02-27T00:00:00Z');
-  return Math.floor((today.getTime() - purchase.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function taxStatus(days: number): string {
-  if (days < 335) return 'ST'; // short-term, not close to 1-year mark
-  if (days < 365) return 'ST⚠️'; // approaching long-term threshold
-  return 'LT'; // long-term (12+ months)
-}
 
 function buildPrompt(holdings: HoldingWithMetrics[], articles: NewsItem[], lang: string): string {
   const totalValue = holdings.reduce((s, h) => s + h.currentValue, 0);
@@ -35,11 +38,9 @@ function buildPrompt(holdings: HoldingWithMetrics[], articles: NewsItem[], lang:
   const holdingsTable = sorted.map((h) => {
     const alloc = totalValue > 0 ? ((h.currentValue / totalValue) * 100).toFixed(1) : '0';
     const gainSign = (h.totalGain ?? 0) >= 0 ? '+' : '';
-    const days = daysSincePurchase(h.purchaseDate);
-    const tax = taxStatus(days);
     const unrealizedGain = h.totalGain ?? 0;
     const gainStr = `${gainSign}$${Math.abs(unrealizedGain).toFixed(2)} (${gainSign}${h.totalGainPercent.toFixed(1)}%)`;
-    return `| ${h.symbol} | ${h.name} | ${h.type}${h.industry ? '/' + h.industry : ''} | $${h.currentPrice.toFixed(2)} | $${(h.costBasis ?? 0).toFixed(2)} | ${h.quantity} | $${h.currentValue.toFixed(2)} | ${alloc}% | ${gainStr} | ${tax} (${days}d) | ${h.purchaseDate} |`;
+    return `| ${h.symbol} | ${h.name} | ${h.type}${h.industry ? '/' + h.industry : ''} | $${h.currentPrice.toFixed(2)} | $${(h.costBasis ?? 0).toFixed(2)} | ${h.quantity} | $${h.currentValue.toFixed(2)} | ${alloc}% | ${gainStr} |`;
   }).join('\n');
 
   const newsSummary = articles
@@ -61,11 +62,9 @@ You are analyzing my actual investment portfolio. Use the exact figures below �
 **Total Cost Basis:** $${totalCost.toFixed(2)}
 **Total Unrealized Gain/Loss:** ${totalGain >= 0 ? '+' : ''}$${totalGain.toFixed(2)} (${totalGainPct >= 0 ? '+' : ''}${totalGainPct.toFixed(1)}%)
 
-| Symbol | Name | Type/Sector | Current Price | Cost Basis/Unit | Qty | Current Value | Alloc% | Unrealized G/L | Tax Status | Purchase Date |
-|--------|------|-------------|---------------|-----------------|-----|---------------|--------|----------------|------------|---------------|
+| Symbol | Name | Type/Sector | Current Price | Cost Basis/Unit | Qty | Current Value | Alloc% | Unrealized G/L |
+|--------|------|-------------|---------------|-----------------|-----|---------------|--------|----------------|
 ${holdingsTable}
-
-*Tax Status: LT = long-term (held 12+ months, lower tax rate) | ST = short-term (<12 months, ordinary income rate) | ST⚠️ = approaching 12-month mark (within 30 days)*
 
 ## RECENT NEWS (last 48h relevant to portfolio)
 ${newsSummary || 'No recent news available.'}
@@ -100,16 +99,15 @@ ${newsSummary || 'No recent news available.'}
 ## MY INVESTMENT PROFILE
 
 - Time Horizon: Mid-to-long term (3–10+ years)
-- Primary Objective: Long-term wealth compounding + tax-efficient growth
+- Primary Objective: Long-term wealth compounding
 - Secondary Objective: Capital preservation during significant drawdowns
-- Tax Strategy: Minimize realized capital gains; prefer long-term holds (12+ months)
 - Investment Discipline: Buy-and-hold only — no active trading or market timing
 
 ---
 
 ## ANALYSIS INSTRUCTIONS
 
-Analyze my specific portfolio above. In every section, reference the actual tickers, dollar amounts, allocations, and tax statuses from my data. Never give advice that could apply to anyone else.
+Analyze my specific portfolio above. In every section, reference the actual tickers, dollar amounts, and allocations from my data. Never give advice that could apply to anyone else.
 
 ### PART 1: PORTFOLIO HEALTH CHECK
 - Assess the overall quality of this portfolio for long-term compounding
@@ -117,42 +115,35 @@ Analyze my specific portfolio above. In every section, reference the actual tick
 - Flag any positions with deteriorating competitive moats, secular headwinds, or structural business model risks
 - Assess this portfolio vs. the 2026 market context — which holdings are well-positioned for the broadening bull market? Which are misaligned?
 
-### PART 2: TAX-EFFICIENT POSITION REVIEW
-For each holding, evaluate through a tax lens using the Tax Status column above:
-- Estimated unrealized gain/loss and tax impact if sold today (short-term = ordinary income rate, long-term = lower capital gains rate)
-- Flag any positions marked ST⚠️ — these are approaching the 12-month long-term threshold
-- For each position: HOLD (do nothing) / HARVEST LOSS (if applicable) / CONSIDER EXIT (with tax-cost-adjusted rationale)
-- Identify positions worth holding SOLELY for tax reasons vs. investment merit
-
-### PART 3: LONG-TERM CONVICTION ASSESSMENT
+### PART 2: LONG-TERM CONVICTION ASSESSMENT
 For each position, provide a 3–5 year outlook:
 - Business fundamentals: Is the competitive moat widening or narrowing?
 - Revenue/earnings growth trajectory over the next 3–5 years
 - Positioning relative to major 2026 themes (AI, industrial broadening, real assets, international diversification)
-- Rate each position: STRONG HOLD / HOLD / MONITOR / EXIT (tax-permitting)
+- Rate each position: STRONG HOLD / HOLD / MONITOR / EXIT
 
-### PART 4: PORTFOLIO CONSTRUCTION & DIVERSIFICATION
+### PART 3: PORTFOLIO CONSTRUCTION & DIVERSIFICATION
 - Sector and geographic breakdown vs. S&P 500 weightings
 - Identify dangerous concentration (any single position >10–15% of portfolio)
 - Flag missing exposure: sectors or themes absent from this portfolio that matter for a 5–10 year horizon
 - Assess correlation risk — positions that tend to fall together in a downturn
-- Recommend target allocation adjustments achievable WITHOUT triggering unnecessary capital gains
+- Recommend target allocation adjustments
 
-### PART 5: STRATEGIC ADDITIONS (New Capital Only)
+### PART 4: STRATEGIC ADDITIONS (New Capital Only)
 Suggest 3–5 new positions or ETFs for NEW money only (no sales required):
 - Complements this specific portfolio without adding redundancy
 - Strong 5–10 year secular tailwinds
 - Reasonable valuations relative to growth prospects
 - For each, explain precisely which gap in this portfolio it fills
 
-### PART 6: RISK MANAGEMENT (Long-Term Lens)
+### PART 5: RISK MANAGEMENT (Long-Term Lens)
 - What is the single biggest risk to this portfolio over a 5-year horizon?
 - How would this portfolio perform in a prolonged bear market (30%+ drawdown)?
 - Any positions facing potential permanent capital loss (existential disruption risk)?
-- Structural hedges appropriate for this long-term portfolio without triggering tax events
+- Structural hedges appropriate for this long-term portfolio
 
-### PART 7: DO NOTHING LIST
-List the positions I should simply leave alone — where patience and compounding is the correct action. For each, briefly state why holding is the right call given the tax cost of selling and the long-term business outlook.
+### PART 6: DO NOTHING LIST
+List the positions I should simply leave alone — where patience and compounding is the correct action. For each, briefly state why holding is the right call given the long-term business outlook.
 
 ---
 
@@ -163,10 +154,9 @@ List the positions I should simply leave alone — where patience and compoundin
 **Portfolio Scorecard:**
 - Long-term business quality: X/10
 - Diversification: X/10
-- Tax efficiency: X/10
 - Alignment with 2026–2030 macro themes: X/10
 
-Then deliver each section (Part 1 through Part 7) as instructed above.
+Then deliver each section (Part 1 through Part 6) as instructed above.
 
 **Priority Action Plan** — maximum 3 actions to take in the next 90 days, with reasoning. If the right answer is "do nothing," say so explicitly.
 
@@ -175,23 +165,46 @@ Then deliver each section (Part 1 through Part 7) as instructed above.
 Tone: Direct, honest, fiduciary. Don't sugarcoat weak positions. Don't recommend action just to appear helpful — sometimes the best advice is to sit still and let compounding do its work.`;
 }
 
-export async function POST(req: NextRequest) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'GROQ_API_KEY is not configured. Get a free key at console.groq.com (no credit card required).' },
-      { status: 500 },
-    );
-  }
+const PROVIDERS = {
+  gemini: {
+    url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    model: 'gemini-2.5-flash',
+    maxTokens: 16000,
+    envKey: 'GEMINI_API_KEY',
+    label: 'Gemini',
+    keyHint: 'Get a free key at aistudio.google.com',
+  },
+  groq: {
+    url: 'https://api.groq.com/openai/v1/chat/completions',
+    model: 'llama-3.3-70b-versatile',
+    maxTokens: 16000,
+    envKey: 'GROQ_API_KEY',
+    label: 'Groq',
+    keyHint: 'Get a free key at console.groq.com',
+  },
+} as const;
 
+type ProviderKey = keyof typeof PROVIDERS;
+
+export async function POST(req: NextRequest) {
   let holdings: HoldingWithMetrics[];
   let articles: NewsItem[];
   let lang: string = 'en';
+  let providerKey: ProviderKey = 'gemini';
 
   try {
-    ({ holdings, articles, lang } = await req.json());
+    ({ holdings, articles, lang, provider: providerKey } = await req.json());
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
+  }
+
+  const config = PROVIDERS[providerKey] ?? PROVIDERS.gemini;
+  const apiKey = process.env[config.envKey];
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: `${config.envKey} is not configured. ${config.keyHint} (no credit card required).` },
+      { status: 500 },
+    );
   }
 
   if (!holdings?.length) {
@@ -201,16 +214,16 @@ export async function POST(req: NextRequest) {
   const prompt = buildPrompt(holdings, articles ?? [], lang);
   const systemPrompt = lang === 'zh-TW' ? SYSTEM_PROMPT_ZH : SYSTEM_PROMPT_EN;
 
-  const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const apiRes = await fetch(config.url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: config.model,
       stream: true,
-      max_tokens: 16000,
+      max_tokens: config.maxTokens,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt },
@@ -218,17 +231,18 @@ export async function POST(req: NextRequest) {
     }),
   });
 
-  if (!groqRes.ok) {
-    const msg = await groqRes.text().catch(() => groqRes.statusText);
-    return NextResponse.json({ error: `Groq API error: ${msg}` }, { status: 502 });
+  if (!apiRes.ok) {
+    const msg = await apiRes.text().catch(() => apiRes.statusText);
+    return NextResponse.json({ error: `${config.label} API error: ${msg}` }, { status: 502 });
   }
 
   const encoder = new TextEncoder();
   const readable = new ReadableStream({
     async start(controller) {
-      const reader = groqRes.body!.getReader();
+      const reader = apiRes.body!.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let fullText = '';
 
       try {
         while (true) {
@@ -246,11 +260,19 @@ export async function POST(req: NextRequest) {
             try {
               const chunk = JSON.parse(jsonStr);
               const text = chunk.choices?.[0]?.delta?.content;
-              if (text) controller.enqueue(encoder.encode(text));
+              if (text) {
+                controller.enqueue(encoder.encode(text));
+                fullText += text;
+              }
             } catch {
               // skip malformed chunk
             }
           }
+        }
+
+        // Persist completed analysis to Redis
+        if (fullText) {
+          await redis.set(CACHE_KEY, { text: fullText, provider: providerKey, generatedAt: Date.now() });
         }
       } catch (err) {
         controller.error(err);

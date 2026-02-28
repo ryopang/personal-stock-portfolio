@@ -11,6 +11,12 @@ interface Props {
 }
 
 type Status = 'idle' | 'streaming' | 'done' | 'error';
+type Provider = 'gemini' | 'groq';
+
+const PROVIDERS: { id: Provider; label: string }[] = [
+  { id: 'gemini', label: 'Gemini 2.5 Flash' },
+  { id: 'groq',   label: 'Groq (Llama 3.3)' },
+];
 
 type VerdictAction = 'STRONG HOLD' | 'BUY MORE' | 'BUY' | 'HOLD' | 'MONITOR' | 'TRIM' | 'HARVEST LOSS' | 'CONSIDER EXIT' | 'EXIT' | 'SELL';
 const VERDICT_STYLES: Record<VerdictAction, { bg: string; text: string; label: string }> = {
@@ -127,11 +133,37 @@ function inlineBold(text: string): React.ReactNode {
   });
 }
 
+function formatAge(ts: number): string {
+  const mins = Math.floor((Date.now() - ts) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 export default function AIAnalysis({ holdings, articles, lang }: Props) {
   const [status, setStatus] = useState<Status>('idle');
   const [text, setText] = useState('');
+  const [provider, setProvider] = useState<Provider>('gemini');
+  const [generatedAt, setGeneratedAt] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Load cached analysis on mount
+  useEffect(() => {
+    fetch('/api/analysis')
+      .then(r => r.json())
+      .then(({ cached }) => {
+        if (cached?.text) {
+          setText(cached.text);
+          setStatus('done');
+          setGeneratedAt(cached.generatedAt);
+          if (cached.provider) setProvider(cached.provider as Provider);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const run = useCallback(async () => {
     if (status === 'streaming') {
@@ -148,7 +180,7 @@ export default function AIAnalysis({ holdings, articles, lang }: Props) {
       const res = await fetch('/api/analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ holdings, articles, lang }),
+        body: JSON.stringify({ holdings, articles, lang, provider }),
         signal: abortRef.current.signal,
       });
 
@@ -178,31 +210,17 @@ export default function AIAnalysis({ holdings, articles, lang }: Props) {
       }
 
       setStatus('done');
+      setGeneratedAt(Date.now());
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
         setStatus('idle');
       } else {
-        setText('Failed to reach the analysis API. Check your GROQ_API_KEY.');
+        setText('Failed to reach the analysis API. Check your GEMINI_API_KEY.');
         setStatus('error');
       }
     }
-  }, [holdings, articles, lang, status]);
+  }, [holdings, articles, lang, status, provider]);
 
-  const hasAutoRun = useRef(false);
-  useEffect(() => {
-    if (hasAutoRun.current || !holdings.length) return;
-    hasAutoRun.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    run();
-  }, [holdings, run]);
-
-  const prevLang = useRef(lang);
-  useEffect(() => {
-    if (prevLang.current === lang) return;
-    prevLang.current = lang;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (text) run();
-  }, [lang, run, text]);
 
   return (
     <div className="space-y-3 flex flex-col h-full overflow-hidden">
@@ -212,9 +230,30 @@ export default function AIAnalysis({ holdings, articles, lang }: Props) {
           <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
             AI Analysis
           </p>
+          {generatedAt && status !== 'streaming' && (
+            <span className="text-[10px] text-secondary opacity-60">
+              {formatAge(generatedAt)}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
+          <select
+            value={provider}
+            onChange={e => setProvider(e.target.value as Provider)}
+            disabled={status === 'streaming'}
+            className="text-xs font-medium rounded-lg px-2.5 py-1 outline-none"
+            style={{
+              backgroundColor: 'var(--color-surface-secondary)',
+              color: 'var(--color-primary)',
+              border: '1px solid var(--color-border)',
+              cursor: 'pointer',
+            }}
+          >
+            {PROVIDERS.map(p => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
           <button
             onClick={run}
             disabled={!holdings.length}
@@ -254,7 +293,7 @@ export default function AIAnalysis({ holdings, articles, lang }: Props) {
             <div>
               <p className="text-sm font-medium text-primary mb-1">Portfolio Intelligence</p>
               <p className="text-xs text-secondary max-w-[220px]">
-                Click Analyze for a fiduciary-grade, tax-aware portfolio review across a 3–10 year horizon.
+                Click Analyze for a fiduciary-grade portfolio review across a 3–10 year horizon.
               </p>
             </div>
           </div>

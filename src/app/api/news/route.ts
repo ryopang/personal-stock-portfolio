@@ -234,8 +234,10 @@ export async function GET(req: NextRequest) {
   const reclassified = reclassifyArticles(articles, portfolioBaseSymbols);
 
   // Filter out articles not relevant to the stock they're tagged with.
-  // An article is relevant if the ticker or any company keyword appears in the English title.
+  // Market index articles (^GSPC, ^DJI, ^IXIC, etc.) bypass this check — their
+  // names ("S&P 500") produce no usable keywords and titles never contain "GSPC".
   const filtered = reclassified.filter((article) => {
+    if (article.symbol.startsWith('^')) return true;
     const base = article.symbol.replace(/^\^/, '').replace(/[-=].*$/, '').toUpperCase();
     const keywords = keywordMap.get(base) ?? [];
     return isRelevantArticle(article.title, base, keywords);

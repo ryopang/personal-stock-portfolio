@@ -289,6 +289,31 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
   const hovSnap = hoverIdx !== null ? filtered[hoverIdx] : null;
   const hovMain = hoverIdx !== null ? mainVals[hoverIdx] : null;
 
+  // Period change: first defined value → last defined value
+  const firstMain = mainVals.find((v): v is number => v !== null) ?? 0;
+  const periodChange = lastMain - firstMain;
+  const periodChangePct = firstMain !== 0 ? (periodChange / Math.abs(firstMain)) * 100 : 0;
+  const periodColor = periodChange >= 0 ? 'var(--color-gain)' : 'var(--color-loss)';
+
+  function fmtPeriodValue(v: number) {
+    if (mode === 'return') return `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
+    if (mode === 'gain') {
+      return `${v < 0 ? '-' : '+'}$${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    }
+    const abs = Math.abs(v);
+    return `${v < 0 ? '-' : ''}$${(abs / 1_000_000).toFixed(2)}M`;
+  }
+
+  function fmtPeriodChange(delta: number, pct: number) {
+    if (mode === 'return') {
+      // delta is already in percentage points
+      return `${delta >= 0 ? '+' : ''}${delta.toFixed(2)} pp`;
+    }
+    const abs = Math.abs(delta);
+    const s = abs >= 1_000_000 ? `$${(abs / 1_000_000).toFixed(2)}M` : abs >= 1_000 ? `$${(abs / 1_000).toFixed(1)}k` : `$${abs.toFixed(0)}`;
+    return `${delta >= 0 ? '+' : '-'}${s} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`;
+  }
+
   return (
     <div className="card p-6">
       {/* Row 1: mode toggles (left) + time range (right) */}
@@ -323,6 +348,24 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
             <option key={r} value={r}>{TIME_RANGE_LABELS[r] ?? r}</option>
           ))}
         </select>
+      </div>
+
+      {/* Period summary */}
+      <div
+        className="flex items-baseline gap-3 mb-3"
+        style={{
+          filter: isPrivate ? 'blur(8px)' : 'none',
+          transition: 'filter 0.2s',
+          userSelect: isPrivate ? 'none' : undefined,
+        }}
+      >
+        <span className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-primary)' }}>
+          {fmtPeriodValue(lastMain)}
+        </span>
+        <span className="text-sm font-semibold tabular-nums" style={{ color: periodColor }}>
+          {fmtPeriodChange(periodChange, periodChangePct)}
+        </span>
+        <span className="text-xs text-secondary">{TIME_RANGE_LABELS[timeRange] ?? timeRange}</span>
       </div>
 
       {/* SVG line chart */}
