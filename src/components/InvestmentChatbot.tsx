@@ -227,6 +227,15 @@ export default function InvestmentChatbot({ holdings, totals, lang }: Props) {
 
   return (
     <>
+      {/* Backdrop */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 transition-all duration-300"
+          style={{ backdropFilter: 'blur(4px)', backgroundColor: 'rgba(0,0,0,0.35)' }}
+          onClick={() => setOpen(false)}
+        />
+      )}
+
       {/* Chat panel */}
       {open && (
         <div
