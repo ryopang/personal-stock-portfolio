@@ -66,7 +66,7 @@ export default function Dashboard({ initialHoldings }: Props) {
 
   useEffect(() => {
     const saved = localStorage.getItem('theme');
-    const isDark = saved === 'dark';
+    const isDark = saved !== 'light';
     setDarkMode(isDark);
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }, []);
