@@ -1,4 +1,5 @@
 import Dashboard from '@/components/Dashboard';
+import PasswordGate from '@/components/PasswordGate';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,5 +15,9 @@ async function getInitialHoldings() {
 
 export default async function Page() {
   const initialHoldings = await getInitialHoldings();
-  return <Dashboard initialHoldings={initialHoldings} />;
+  return (
+    <PasswordGate>
+      <Dashboard initialHoldings={initialHoldings} />
+    </PasswordGate>
+  );
 }
