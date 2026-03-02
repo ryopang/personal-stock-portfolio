@@ -175,7 +175,7 @@ export function HoldingCard({ holding, onEdit, onDelete }: Props) {
               <span className="text-base leading-none select-none" title="Up >5% today">🔥</span>
             )}
             {holding.dailyChangePercent < -5 && (
-              <svg className="w-4 h-4 text-loss shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} title="Down >5% today">
+              <svg className="w-4 h-4 text-loss shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-label="Down >5% today">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75" />
               </svg>
             )}
