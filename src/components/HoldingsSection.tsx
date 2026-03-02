@@ -290,7 +290,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                                 : 'text-secondary hover:text-primary hover:bg-surface-secondary'
                             }`}
                           >
-                            🔥↓
+                            👀
                           </button>
                           <button
                             onClick={() => toggleSort(h.key)}

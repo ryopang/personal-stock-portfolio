@@ -62,7 +62,6 @@ export default function MarketNews({ lang, controls }: Props) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang]);
 
   async function handleLoadMore() {

@@ -5,18 +5,16 @@ import { useState, useEffect, useRef, FormEvent } from 'react';
 const SESSION_KEY = 'portfolio_unlocked';
 
 export default function PasswordGate({ children }: { children: React.ReactNode }) {
-  const [unlocked, setUnlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState(() =>
+    typeof window !== 'undefined' && sessionStorage.getItem(SESSION_KEY) === 'true'
+  );
   const [input, setInput] = useState('');
   const [error, setError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (sessionStorage.getItem(SESSION_KEY) === 'true') {
-      setUnlocked(true);
-    } else {
-      // Small delay so the overlay is painted before we focus
-      setTimeout(() => inputRef.current?.focus(), 80);
-    }
+    // Small delay so the overlay is painted before we focus
+    setTimeout(() => inputRef.current?.focus(), 80);
   }, []);
 
   function handleSubmit(e: FormEvent) {

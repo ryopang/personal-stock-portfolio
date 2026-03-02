@@ -47,6 +47,30 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ---
 
+## Changelog
+
+### March 2026
+- **UI polish — mobile & holdings table**
+  - Price column moved between Investment and Quantity in the holdings table
+  - Mobile holding cards now show the 👀 mover alert indicator; edit/delete touch targets enlarged to ~44px; `-USD` suffix stripped from crypto symbol display
+  - Header icon buttons and view tabs enlarged for easier mobile tapping
+  - Industry breakdown table hides Cost column on mobile and eliminates horizontal scroll via tighter padding and fonts
+  - Industry breakdown rows show a unique symbol count badge
+- **Deduplication fixes** — today's up/down mover counts, type tab counts, and industry chip counts now count each symbol only once (previously multi-lot holdings inflated the counts)
+- **Chatbot backdrop blur** — the page blurs behind the Investment Advisor panel when it is open
+- **SVG accessibility fix** — replaced invalid `title` prop with `aria-label` on SVG trend indicators in holding rows
+- **Lint fixes**
+  - `PasswordGate`: moved `sessionStorage` read into the `useState` lazy initializer, eliminating a `setState` call inside `useEffect`
+  - `MarketNews`: removed stale `eslint-disable-next-line` directive that was no longer suppressing anything
+
+### February 2026
+- **Investment Advisor chatbot** — floating portfolio-aware chat panel with multi-LLM support (Gemini 2.5 Flash · Groq Llama 3.3 70B), streaming responses, markdown rendering, and suggested starter questions
+- **AI analysis persistence** — LLM portfolio commentary is now persisted to Redis so it survives page reloads
+- **Default dark mode** — new visitors start in dark mode; preference is saved to `localStorage`
+- **Password gate** — lightweight client-side access control with session persistence via `sessionStorage`
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
