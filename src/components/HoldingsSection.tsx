@@ -21,10 +21,10 @@ const TABS: { value: Tab; label: string }[] = [
 
 const TABLE_HEADERS: { label: string; key: SortKey; className: string }[] = [
   { label: 'Investment', key: 'symbol', className: 'px-1.5 text-center w-20' },
+  { label: 'Price', key: 'currentPrice', className: 'px-1.5 text-center' },
   { label: 'Quantity', key: 'quantity', className: 'px-1.5 text-center' },
   { label: 'Avg Cost', key: 'costBasis', className: 'px-1.5 text-center' },
   { label: 'Total Cost', key: 'totalCost', className: 'px-1.5 text-center whitespace-nowrap' },
-  { label: 'Price', key: 'currentPrice', className: 'px-1.5 text-center' },
   { label: 'Current Value', key: 'currentValue', className: 'px-1.5 text-center whitespace-nowrap' },
   { label: 'Daily Change', key: 'dailyChangePercent', className: 'px-1.5 text-center whitespace-nowrap' },
   { label: 'Total Gain / Loss', key: 'totalGainPercent', className: 'pl-1.5 pr-3 text-center whitespace-nowrap' },
@@ -135,8 +135,14 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
   }, [sortedFiltered]);
 
   const typeCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: holdings.length };
-    for (const h of holdings) counts[h.type] = (counts[h.type] ?? 0) + 1;
+    const seen = new Set<string>();
+    const counts: Record<string, number> = { all: 0 };
+    for (const h of holdings) {
+      if (seen.has(h.symbol)) continue;
+      seen.add(h.symbol);
+      counts.all++;
+      counts[h.type] = (counts[h.type] ?? 0) + 1;
+    }
     return counts;
   }, [holdings]);
 
@@ -147,8 +153,11 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
 
   // Industry counts for the current filtered view
   const industryCounts = useMemo(() => {
+    const seen = new Set<string>();
     const counts: Record<string, number> = {};
     for (const h of filtered) {
+      if (seen.has(h.symbol)) continue;
+      seen.add(h.symbol);
       const key = h.industry?.trim() || '—';
       counts[key] = (counts[key] ?? 0) + 1;
     }
@@ -320,6 +329,8 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                   <td className="py-2 pl-16 pr-2">
                     <span className="text-xs font-semibold text-secondary uppercase tracking-wide">Total</span>
                   </td>
+                  {/* Price */}
+                  <td className="py-2px-2" />
                   {/* Quantity */}
                   <td className="py-2px-2" />
                   {/* Avg Cost */}
@@ -328,8 +339,6 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                   <td className="py-2 px-2 text-sm font-bold text-primary tabular-nums text-center">
                     {formatCurrencyK(filteredTotals.totalCost)}
                   </td>
-                  {/* Price */}
-                  <td className="py-2px-2" />
                   {/* Current Value */}
                   <td className="py-2px-2 text-sm font-bold text-primary tabular-nums text-center">
                     {formatCurrencyK(filteredTotals.totalValue)}

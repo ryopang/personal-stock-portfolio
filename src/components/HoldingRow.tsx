@@ -71,6 +71,11 @@ export function HoldingTableRow({ holding, onEdit, onDelete }: Props) {
         </div>
       </td>
 
+      {/* Current Price */}
+      <td className="py-1.5 px-1.5 text-sm font-medium text-primary tabular-nums text-center">
+        {holding.currentPrice >= 1000 ? formatCurrencyK(holding.currentPrice) : formatCurrency(holding.currentPrice)}
+      </td>
+
       {/* Quantity */}
       <td className="py-1.5 px-1.5 text-sm text-secondary tabular-nums text-center">
         {formatQuantity(holding.quantity)}
@@ -84,11 +89,6 @@ export function HoldingTableRow({ holding, onEdit, onDelete }: Props) {
       {/* Total Cost */}
       <td className="py-1.5 px-1.5 text-sm text-secondary tabular-nums text-center">
         {formatCurrencyK(holding.totalCost)}
-      </td>
-
-      {/* Current Price */}
-      <td className="py-1.5 px-1.5 text-sm font-medium text-primary tabular-nums text-center">
-        {holding.currentPrice >= 1000 ? formatCurrencyK(holding.currentPrice) : formatCurrency(holding.currentPrice)}
       </td>
 
       {/* Market Value */}
@@ -171,17 +171,25 @@ export function HoldingCard({ holding, onEdit, onDelete }: Props) {
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-bold text-primary">{holding.symbol}</span>
+            {holding.dailyChangePercent > 5 && (
+              <span className="text-base leading-none select-none" title="Up >5% today">🔥</span>
+            )}
+            {holding.dailyChangePercent < -5 && (
+              <svg className="w-4 h-4 text-loss shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} title="Down >5% today">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75" />
+              </svg>
+            )}
+            <span className="font-bold text-primary">{holding.symbol.replace(/-USD$/, '')}</span>
             {holding.industry && (
               <span className="text-xs text-secondary">{holding.industry}</span>
             )}
           </div>
           <p className="text-xs text-secondary mt-0.5 line-clamp-1">{holding.name}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => onEdit(holding)}
-            className="p-1.5 rounded-lg text-secondary hover:text-accent hover:bg-accent/10 active:bg-accent/20 transition-colors"
+            className="p-2.5 rounded-lg text-secondary hover:text-accent hover:bg-accent/10 active:bg-accent/20 transition-colors"
             style={{ touchAction: 'manipulation' }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -190,7 +198,7 @@ export function HoldingCard({ holding, onEdit, onDelete }: Props) {
           </button>
           <button
             onClick={() => onDelete(holding.id)}
-            className="p-1.5 rounded-lg text-secondary hover:text-loss hover:bg-loss/10 active:bg-loss/20 transition-colors"
+            className="p-2.5 rounded-lg text-secondary hover:text-loss hover:bg-loss/10 active:bg-loss/20 transition-colors"
             style={{ touchAction: 'manipulation' }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -28,8 +28,11 @@ export default function PortfolioSummary({
   onMoverFilter,
 }: Props) {
   const dayMovers = useMemo(() => {
+    const seen = new Set<string>();
     let gainers = 0, losers = 0;
     for (const h of holdings) {
+      if (seen.has(h.symbol)) continue;
+      seen.add(h.symbol);
       if (h.dailyChange > 0) gainers++;
       else if (h.dailyChange < 0) losers++;
     }
@@ -119,10 +122,11 @@ export default function PortfolioSummary({
               <span className="no-privacy flex items-center gap-1">
                 <button
                   onClick={() => onMoverFilter(moverFilter === 'gainers' ? null : 'gainers')}
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold tabular-nums transition-all"
+                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] font-semibold tabular-nums transition-all"
                   style={{
                     backgroundColor: moverFilter === 'gainers' ? '#34C759' : 'rgba(52,199,89,0.12)',
                     color: moverFilter === 'gainers' ? '#fff' : '#34C759',
+                    touchAction: 'manipulation',
                   }}
                 >
                   <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -132,10 +136,11 @@ export default function PortfolioSummary({
                 </button>
                 <button
                   onClick={() => onMoverFilter(moverFilter === 'losers' ? null : 'losers')}
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold tabular-nums transition-all"
+                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] font-semibold tabular-nums transition-all"
                   style={{
                     backgroundColor: moverFilter === 'losers' ? '#FF3B30' : 'rgba(255,59,48,0.12)',
                     color: moverFilter === 'losers' ? '#fff' : '#FF3B30',
+                    touchAction: 'manipulation',
                   }}
                 >
                   <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>

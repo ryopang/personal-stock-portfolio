@@ -14,6 +14,7 @@ const COLORS = [
 
 interface Slice {
   industry: string;
+  count: number;
   value: number;
   percent: number;
   dailyChange: number;
@@ -190,17 +191,21 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
   function xOf(i: number) { return ml + (i / (n - 1)) * cW; }
 
   const showIndustryOverlays = mode !== 'return';
-  const allVals = [
-    ...definedMain,
-    ...(showIndustryOverlays
-      ? filtered.flatMap(s => [...enabled].map(ind => s.byIndustry[ind]?.totalGain ?? 0))
-      : []),
-  ];
+  const hasSelectedIndustry = enabled.size > 0;
+
+  // When an industry is selected, scale the y-axis to that industry's data only
+  const industryVals = showIndustryOverlays
+    ? filtered.flatMap(s => [...enabled].map(ind => s.byIndustry[ind]?.totalGain ?? 0))
+    : [];
+  const allVals = hasSelectedIndustry && industryVals.length > 0
+    ? industryVals
+    : [...definedMain, ...industryVals];
   const rawMin = Math.min(...allVals);
   const rawMax = Math.max(...allVals);
   const pad = (rawMax - rawMin) * 0.08 || Math.abs(rawMax) * 0.05 || 1;
-  const yMin = rawMin - pad;
-  const yMax = rawMax + pad;
+  // Don't pad into negative territory when all data is positive (and vice versa)
+  const yMin = rawMin >= 0 ? Math.max(rawMin - pad, 0) : rawMin - pad;
+  const yMax = rawMax <= 0 ? Math.min(rawMax + pad, 0) : rawMax + pad;
   const yRange = yMax - yMin;
 
   function yOf(v: number) { return mt + cH - ((v - yMin) / yRange) * cH; }
@@ -216,13 +221,18 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
 
   function fmtY(v: number) {
     if (mode === 'return') return `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
-    if (mode === 'gain') {
-      const abs = Math.abs(v);
-      const s = abs >= 1_000_000 ? `$${(abs / 1_000_000).toFixed(1)}m` : abs >= 1_000 ? `$${(abs / 1_000).toFixed(0)}k` : `$${abs.toFixed(0)}`;
+    const abs = Math.abs(v);
+    // Gain mode or industry-selected (which always shows G/L): use adaptive +/- prefix
+    if (mode === 'gain' || hasSelectedIndustry) {
+      const s = abs >= 1_000_000 ? `$${(abs / 1_000_000).toFixed(1)}m`
+        : abs >= 1_000 ? `$${(abs / 1_000).toFixed(0)}k`
+        : `$${abs.toFixed(0)}`;
       return `${v < 0 ? '-' : '+'}${s}`;
     }
-    const abs = Math.abs(v);
-    const s = `$${(abs / 1_000_000).toFixed(2)}M`;
+    // Value mode — adaptive scale
+    const s = abs >= 1_000_000 ? `$${(abs / 1_000_000).toFixed(2)}M`
+      : abs >= 1_000 ? `$${(abs / 1_000).toFixed(1)}k`
+      : `$${abs.toFixed(0)}`;
     return v < 0 ? `-${s}` : s;
   }
 
@@ -239,8 +249,25 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
 
   const mainPath = makePath(mainVals);
 
-  const yTickCount = 5;
-  const yTicks = Array.from({ length: yTickCount + 1 }, (_, i) => yMin + (i / yTickCount) * yRange);
+  // Industry-combined G/L series for period summary when industries are selected
+  const industryGainSeries = hasSelectedIndustry && filtered.length > 0
+    ? filtered.map(s => [...enabled].reduce((sum, ind) => sum + (s.byIndustry[ind]?.totalGain ?? 0), 0))
+    : null;
+
+  // Generate "nice" y-axis ticks (e.g. multiples of 50, 100, 500, 1k …)
+  const yTicks = (() => {
+    const targetCount = 5;
+    const rawStep = yRange / targetCount;
+    const mag = Math.pow(10, Math.floor(Math.log10(Math.max(Math.abs(rawStep), 1e-9))));
+    const norm = rawStep / mag;
+    const niceStep = norm <= 1 ? mag : norm <= 2 ? 2 * mag : norm <= 5 ? 5 * mag : 10 * mag;
+    const start = Math.ceil(yMin / niceStep) * niceStep;
+    const ticks: number[] = [];
+    for (let v = start; v <= yMax + niceStep * 0.01; v += niceStep) {
+      ticks.push(Math.round(v * 1e9) / 1e9);
+    }
+    return ticks;
+  })();
 
   function midpointsByKey(keyFn: (s: DailySnapshot) => string): number[] {
     const groups = new Map<string, { first: number; last: number }>();
@@ -294,10 +321,12 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
   const hovSnap = hoverIdx !== null ? filtered[hoverIdx] : null;
   const hovMain = hoverIdx !== null ? mainVals[hoverIdx] : null;
 
-  // Period change: first defined value → last defined value
+  // Period change: use industry G/L series when selected, else main vals
   const firstMain = mainVals.find((v): v is number => v !== null) ?? 0;
-  const periodChange = lastMain - firstMain;
-  const periodChangePct = firstMain !== 0 ? (periodChange / Math.abs(firstMain)) * 100 : 0;
+  const displayLast = industryGainSeries ? industryGainSeries[industryGainSeries.length - 1] : lastMain;
+  const displayFirst = industryGainSeries ? industryGainSeries[0] : firstMain;
+  const periodChange = displayLast - displayFirst;
+  const periodChangePct = displayFirst !== 0 ? (periodChange / Math.abs(displayFirst)) * 100 : 0;
   const periodColor = periodChange >= 0 ? 'var(--color-gain)' : 'var(--color-loss)';
 
   function fmtPeriodValue(v: number) {
@@ -365,10 +394,12 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
         }}
       >
         <span className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-primary)' }}>
-          {fmtPeriodValue(lastMain)}
+          {industryGainSeries ? fmtMoney(periodChange) : fmtPeriodValue(lastMain)}
         </span>
         <span className="text-sm font-semibold tabular-nums" style={{ color: periodColor }}>
-          {fmtPeriodChange(periodChange, periodChangePct)}
+          {industryGainSeries
+            ? `(${periodChangePct >= 0 ? '+' : ''}${periodChangePct.toFixed(2)}%)`
+            : fmtPeriodChange(periodChange, periodChangePct)}
         </span>
         <span className="text-xs text-secondary">{rangeLabel(timeRange)}</span>
       </div>
@@ -399,8 +430,8 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
           ))}
         </g>
 
-        {/* Zero line (gain/return modes, if crosses zero) */}
-        {mode !== 'value' && yMin < 0 && yMax > 0 && (
+        {/* Zero line (gain/return modes, or when industry selected, if crosses zero) */}
+        {(mode !== 'value' || hasSelectedIndustry) && yMin < 0 && yMax > 0 && (
           <line x1={ml} y1={yOf(0)} x2={ml + cW} y2={yOf(0)}
             stroke="var(--color-secondary)" strokeWidth={1} opacity={0.3} />
         )}
@@ -420,14 +451,17 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
           if (!path) return null;
           return (
             <path key={ind} d={path} fill="none" stroke={color}
-              strokeWidth={1.5} strokeDasharray="5 3"
+              strokeWidth={hasSelectedIndustry ? 2.5 : 1.5}
+              strokeDasharray={hasSelectedIndustry ? undefined : '5 3'}
               strokeLinecap="round" strokeLinejoin="round" opacity={0.85} />
           );
         })}
 
-        {/* Main line */}
-        <path d={mainPath} fill="none" stroke={lineColor}
-          strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+        {/* Main line — hidden when a specific industry is selected */}
+        {!hasSelectedIndustry && (
+          <path d={mainPath} fill="none" stroke={lineColor}
+            strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+        )}
 
         {/* Hover crosshair */}
         {hoverIdx !== null && (
@@ -450,7 +484,8 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
         {hovSnap && hoverIdx !== null && hovMain !== null && (() => {
           const enabledArr = showIndustryOverlays ? [...enabled] : [];
           const tooltipLines: { label: string; value: string; color: string }[] = [
-            {
+            // Hide the total-portfolio line when a specific industry is selected
+            ...(!hasSelectedIndustry ? [{
               label: mode === 'value' ? 'Total Value' : mode === 'gain' ? 'Total G/L' : 'Return',
               value: mode === 'value'
                 ? fmtFull(hovSnap.totalValue)
@@ -462,7 +497,7 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
                 : mode === 'return'
                 ? '#AF52DE'
                 : hovMain >= 0 ? 'var(--color-gain)' : 'var(--color-loss)',
-            },
+            }] : []),
             ...enabledArr.map(ind => ({
               label: `${ind} G/L`,
               value: fmtMoneyFull(hovSnap.byIndustry[ind]?.totalGain ?? 0),
@@ -566,8 +601,8 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
   const minClose = n ? Math.min(...closes) : 0;
   const maxClose = n ? Math.max(...closes) : 1;
   const pad = (maxClose - minClose) * 0.08 || maxClose * 0.05 || 1;
-  const yMin = minClose - pad;
-  const yMax = maxClose + pad;
+  const yMin = minClose >= 0 ? Math.max(minClose - pad, 0) : minClose - pad;
+  const yMax = maxClose <= 0 ? Math.min(maxClose + pad, 0) : maxClose + pad;
   const yRange = yMax - yMin;
 
   function yOf(v: number) { return mt + cH - ((v - yMin) / yRange) * cH; }
@@ -580,8 +615,20 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
     ? `${linePath} L${xOf(n - 1)},${mt + cH} L${xOf(0)},${mt + cH} Z`
     : '';
 
-  const yTickCount = 5;
-  const yTicks = Array.from({ length: yTickCount + 1 }, (_, i) => yMin + (i / yTickCount) * yRange);
+  // Nice y-axis ticks
+  const yTicks = (() => {
+    const targetCount = 5;
+    const rawStep = yRange / targetCount;
+    const mag = Math.pow(10, Math.floor(Math.log10(Math.max(Math.abs(rawStep), 1e-9))));
+    const norm = rawStep / mag;
+    const niceStep = norm <= 1 ? mag : norm <= 2 ? 2 * mag : norm <= 5 ? 5 * mag : 10 * mag;
+    const start = Math.ceil(yMin / niceStep) * niceStep;
+    const ticks: number[] = [];
+    for (let v = start; v <= yMax + niceStep * 0.01; v += niceStep) {
+      ticks.push(Math.round(v * 1e9) / 1e9);
+    }
+    return ticks;
+  })();
 
   function fmtXDate(d: string) {
     // Intraday dates are full ISO timestamps; daily dates are YYYY-MM-DD
@@ -808,11 +855,12 @@ export default function ChartsView({ holdings }: Props) {
   }
 
   const slices = useMemo((): Slice[] => {
-    const map = new Map<string, { value: number; dailyChange: number; totalGain: number; totalCost: number }>();
+    const map = new Map<string, { value: number; dailyChange: number; totalGain: number; totalCost: number; symbols: Set<string> }>();
     for (const h of holdings) {
       const key = h.industry?.trim() || 'Other';
-      const p = map.get(key) ?? { value: 0, dailyChange: 0, totalGain: 0, totalCost: 0 };
-      map.set(key, { value: p.value + h.currentValue, dailyChange: p.dailyChange + h.dailyChange, totalGain: p.totalGain + h.totalGain, totalCost: p.totalCost + h.totalCost });
+      const p = map.get(key) ?? { value: 0, dailyChange: 0, totalGain: 0, totalCost: 0, symbols: new Set() };
+      p.symbols.add(h.symbol);
+      map.set(key, { value: p.value + h.currentValue, dailyChange: p.dailyChange + h.dailyChange, totalGain: p.totalGain + h.totalGain, totalCost: p.totalCost + h.totalCost, symbols: p.symbols });
     }
     const total = [...map.values()].reduce((s, v) => s + v.value, 0);
     const sorted = [...map.entries()].sort(([, a], [, b]) => b.value - a.value);
@@ -822,6 +870,7 @@ export default function ChartsView({ holdings }: Props) {
       const sweep = (percent / 100) * 360;
       const s: Slice = {
         industry, percent, color: COLORS[i % COLORS.length],
+        count: d.symbols.size,
         value: d.value, dailyChange: d.dailyChange,
         dailyChangePct: (d.value - d.dailyChange) > 0 ? (d.dailyChange / (d.value - d.dailyChange)) * 100 : 0,
         totalGain: d.totalGain,
@@ -846,10 +895,25 @@ export default function ChartsView({ holdings }: Props) {
   return (
     <div className="space-y-4">
       {/* ── Industry distribution donut ── */}
-      <div className="card p-6">
-        <h2 className="text-sm font-semibold text-secondary uppercase tracking-wide mb-5">
-          Industry Distribution
-        </h2>
+      <div className="card p-4 md:p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-sm font-semibold text-secondary uppercase tracking-wide">
+            Industry Distribution
+          </h2>
+          {selectedIndustries.size > 0 && (
+            <button
+              onClick={() => setSelectedIndustries(new Set())}
+              className="text-xs font-medium px-2.5 py-1 rounded-lg transition-colors"
+              style={{
+                backgroundColor: 'var(--color-surface-secondary)',
+                color: 'var(--color-secondary)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
 
         <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start">
 
@@ -896,15 +960,15 @@ export default function ChartsView({ holdings }: Props) {
           </div>
 
           {/* ── Legend table ── */}
-          <div className="flex-1 min-w-0 w-full overflow-x-auto">
-            <table className="w-full text-sm border-collapse" style={{ minWidth: 360 }}>
+          <div className="flex-1 min-w-0 w-full">
+            <table className="w-full border-collapse">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <th className="text-left pb-2 pr-4 text-xs font-semibold text-secondary uppercase tracking-wide whitespace-nowrap">Industry</th>
-                  <th className="text-center pb-2 px-4 text-xs font-semibold text-secondary uppercase tracking-wide whitespace-nowrap">Cost</th>
-                  <th className="text-center pb-2 px-4 text-xs font-semibold text-secondary uppercase tracking-wide whitespace-nowrap">Value</th>
-                  <th className="text-center pb-2 px-4 text-xs font-semibold text-secondary uppercase tracking-wide whitespace-nowrap">Daily Change</th>
-                  <th className="text-center pb-2 pl-4 text-xs font-semibold text-secondary uppercase tracking-wide whitespace-nowrap">Total G/L</th>
+                  <th className="text-left pb-2 pr-2 md:pr-4 text-xs font-semibold text-secondary uppercase tracking-wide whitespace-nowrap">Industry</th>
+                  <th className="hidden sm:table-cell text-center pb-2 px-2 md:px-4 text-xs font-semibold text-secondary uppercase tracking-wide whitespace-nowrap">Cost</th>
+                  <th className="text-center pb-2 px-2 md:px-4 text-xs font-semibold text-secondary uppercase tracking-wide whitespace-nowrap">Value</th>
+                  <th className="text-center pb-2 px-2 md:px-4 text-xs font-semibold text-secondary uppercase tracking-wide whitespace-nowrap">Daily</th>
+                  <th className="text-center pb-2 pl-2 md:pl-4 text-xs font-semibold text-secondary uppercase tracking-wide whitespace-nowrap">Total G/L</th>
                 </tr>
               </thead>
               <tbody>
@@ -929,30 +993,34 @@ export default function ChartsView({ holdings }: Props) {
                       onClick={() => toggleIndustry(slice.industry)}
                     >
                       {/* Industry name */}
-                      <td className="py-1.5 pr-4">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }} />
-                          <span className="font-medium text-primary">{slice.industry}</span>
-                          <span className="text-xs font-semibold tabular-nums" style={{ color: slice.color }}>{slice.percent.toFixed(1)}%</span>
+                      <td className="py-1.5 pr-2 md:pr-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }} />
+                          <span className="text-xs md:text-sm font-medium text-primary">{slice.industry}</span>
+                          <span className="text-[10px] md:text-xs font-semibold tabular-nums" style={{ color: slice.color }}>{slice.percent.toFixed(1)}%</span>
+                          <span
+                            className="text-[10px] md:text-xs font-semibold tabular-nums px-1 md:px-1.5 py-0.5 rounded-full"
+                            style={{ backgroundColor: slice.color + '22', color: slice.color }}
+                          >{slice.count}</span>
                         </div>
                       </td>
-                      {/* Cost */}
-                      <td className="py-1.5 px-4 text-center tabular-nums font-semibold text-primary whitespace-nowrap">
+                      {/* Cost — hidden on mobile */}
+                      <td className="hidden sm:table-cell py-1.5 px-2 md:px-4 text-center tabular-nums text-xs md:text-sm font-semibold text-primary whitespace-nowrap">
                         {formatCurrencyK(slice.totalCost)}
                       </td>
                       {/* Value */}
-                      <td className="py-1.5 px-4 text-center tabular-nums font-semibold text-primary whitespace-nowrap">
+                      <td className="py-1.5 px-2 md:px-4 text-center tabular-nums text-xs md:text-sm font-semibold text-primary whitespace-nowrap">
                         {formatCurrencyK(slice.value)}
                       </td>
                       {/* Daily change */}
-                      <td className="py-1.5 px-4 text-center whitespace-nowrap" style={{ color: dailyColor }}>
-                        <div className="tabular-nums font-semibold">{fmtMoneyFull(slice.dailyChange)}</div>
-                        <div className="tabular-nums text-xs opacity-75">{fmtPct(slice.dailyChangePct)}</div>
+                      <td className="py-1.5 px-2 md:px-4 text-center whitespace-nowrap" style={{ color: dailyColor }}>
+                        <div className="tabular-nums text-xs md:text-sm font-semibold">{fmtMoneyFull(slice.dailyChange)}</div>
+                        <div className="tabular-nums text-[10px] md:text-xs opacity-75">{fmtPct(slice.dailyChangePct)}</div>
                       </td>
                       {/* Total gain/loss */}
-                      <td className="py-1.5 pl-4 text-center whitespace-nowrap" style={{ color: gainColor }}>
-                        <div className="tabular-nums font-semibold">{fmtMoney(slice.totalGain)}</div>
-                        <div className="tabular-nums text-xs opacity-75">{fmtPct(slice.totalGainPct)}</div>
+                      <td className="py-1.5 pl-2 md:pl-4 text-center whitespace-nowrap" style={{ color: gainColor }}>
+                        <div className="tabular-nums text-xs md:text-sm font-semibold">{fmtMoney(slice.totalGain)}</div>
+                        <div className="tabular-nums text-[10px] md:text-xs opacity-75">{fmtPct(slice.totalGainPct)}</div>
                       </td>
                     </tr>
                   );

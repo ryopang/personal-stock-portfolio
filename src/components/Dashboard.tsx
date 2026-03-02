@@ -214,8 +214,8 @@ export default function Dashboard({ initialHoldings }: Props) {
                 setPrivacyMode(next);
                 document.documentElement.classList.toggle('privacy-mode', next);
               }}
-              className="btn-secondary p-2 rounded-lg"
-              style={{ padding: '0.5rem' }}
+              className="btn-secondary rounded-lg"
+              style={{ padding: '0.625rem' }}
               aria-label={privacyMode ? 'Show values' : 'Hide values'}
               title={privacyMode ? 'Show values' : 'Hide values'}
             >
@@ -235,8 +235,8 @@ export default function Dashboard({ initialHoldings }: Props) {
             {/* Dark mode toggle */}
             <button
               onClick={toggleDarkMode}
-              className="btn-secondary p-2 rounded-lg"
-              style={{ padding: '0.5rem' }}
+              className="btn-secondary rounded-lg"
+              style={{ padding: '0.625rem' }}
               aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               title={darkMode ? 'Light mode' : 'Dark mode'}
             >
@@ -330,7 +330,7 @@ export default function Dashboard({ initialHoldings }: Props) {
               <button
                 key={view}
                 onClick={() => setActiveView(view)}
-                className="px-4 py-2 text-sm font-medium capitalize transition-colors relative"
+                className="px-4 py-3 sm:py-2 text-sm font-medium capitalize transition-colors relative"
                 style={{
                   color: activeView === view ? 'var(--color-primary)' : 'var(--color-secondary)',
                   touchAction: 'manipulation',
