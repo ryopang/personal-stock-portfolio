@@ -432,6 +432,11 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
 
       {/* SVG line chart */}
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible', display: 'block' }}>
+        <defs>
+          <filter id="privacy-blur-trend" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="4" />
+          </filter>
+        </defs>
         {/* Grid lines */}
         {yTicks.map((v, i) => (
           <line key={i}
@@ -442,19 +447,14 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
           />
         ))}
 
-        {/* Y labels — wrapped in a single <g> so CSS filter works reliably */}
-        <g style={{
-          filter: isPrivate ? 'blur(8px)' : 'none',
-          transition: 'filter 0.2s',
-          userSelect: isPrivate ? 'none' : undefined,
-        }}>
-          {yTicks.map((v, i) => (
-            <text key={i} x={ml - 8} y={yOf(v) + 4} textAnchor="end" fontSize={10}
-              style={{ fill: 'var(--color-secondary)' }}>
-              {fmtY(v)}
-            </text>
-          ))}
-        </g>
+        {/* Y labels */}
+        {yTicks.map((v, i) => (
+          <text key={i} x={ml - 8} y={yOf(v) + 4} textAnchor="end" fontSize={10}
+            filter={isPrivate ? 'url(#privacy-blur-trend)' : undefined}
+            style={{ fill: 'var(--color-secondary)' }}>
+            {fmtY(v)}
+          </text>
+        ))}
 
         {/* Zero line (gain/return modes, or when industry selected, if crosses zero) */}
         {(mode !== 'value' || hasSelectedIndustry) && yMin < 0 && yMax > 0 && (
@@ -578,7 +578,7 @@ function fmtPriceFull(v: number): string {
   return `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
+function StockPriceChart({ holdings, isPrivate }: { holdings: HoldingWithMetrics[]; isPrivate: boolean }) {
   const uniqueHoldings = useMemo(
     () => [...new Map(holdings.map(h => [h.symbol, h])).values()].sort((a, b) => a.symbol.localeCompare(b.symbol)),
     [holdings],
@@ -786,6 +786,9 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
               <stop offset="0%"   stopColor={isUp ? '#34C759' : '#FF3B30'} stopOpacity={0.18} />
               <stop offset="100%" stopColor={isUp ? '#34C759' : '#FF3B30'} stopOpacity={0} />
             </linearGradient>
+            <filter id="privacy-blur-price" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="4" />
+            </filter>
           </defs>
 
           {/* Grid lines */}
@@ -801,6 +804,7 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
           {/* Y labels */}
           {yTicks.map((v, i) => (
             <text key={i} x={ml - 8} y={yOf(v) + 4} textAnchor="end" fontSize={10}
+              filter={isPrivate ? 'url(#privacy-blur-price)' : undefined}
               style={{ fill: 'var(--color-secondary)' }}>
               {fmtPrice(v)}
             </text>
@@ -998,6 +1002,11 @@ export default function ChartsView({ holdings }: Props) {
           {/* ── Donut chart ── */}
           <div className="shrink-0 w-full max-w-[280px] md:w-[324px]">
             <svg width="100%" viewBox="0 0 360 360" style={{ display: 'block' }}>
+              <defs>
+                <filter id="privacy-blur-donut" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur in="SourceGraphic" stdDeviation="3" />
+                </filter>
+              </defs>
               {slices.map((slice) => {
                 const selected = selectedIndustries.has(slice.industry);
                 return (
@@ -1021,11 +1030,8 @@ export default function ChartsView({ holdings }: Props) {
                   <text x={cx} y={cy - 15} textAnchor="middle" fontSize={14} style={{ fill: 'var(--color-secondary)' }}>{hoveredSlice.industry}</text>
                   <text x={cx} y={cy + 10} textAnchor="middle" fontSize={24} fontWeight="700" style={{ fill: 'var(--color-primary)' }}>{hoveredSlice.percent.toFixed(1)}%</text>
                   <text x={cx} y={cy + 32} textAnchor="middle" fontSize={14}
-                    style={{
-                      fill: 'var(--color-secondary)',
-                      filter: isPrivate ? 'blur(6px)' : 'none',
-                      transition: 'filter 0.15s',
-                    }}
+                    filter={isPrivate ? 'url(#privacy-blur-donut)' : undefined}
+                    style={{ fill: 'var(--color-secondary)' }}
                   >{formatCurrencyK(hoveredSlice.value)}</text>
                 </>
               ) : (
@@ -1114,7 +1120,7 @@ export default function ChartsView({ holdings }: Props) {
       <TrendChart industryColors={industryColors} enabled={selectedIndustries} />
 
       {/* ── Individual stock price trend ── */}
-      <StockPriceChart holdings={holdings} />
+      <StockPriceChart holdings={holdings} isPrivate={isPrivate} />
     </div>
   );
 }
