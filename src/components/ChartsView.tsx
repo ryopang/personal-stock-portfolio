@@ -62,6 +62,31 @@ function fmtPct(v: number) { return `${sign(v)}${v.toFixed(2)}%`; }
 
 const snapshotFetcher = (url: string) => fetch(url).then(r => r.json());
 
+// Place x-axis labels at the calendar midpoint of each period (15th for months,
+// July 1 for years), skipping periods whose midpoint falls outside the data range.
+// This ensures equal visual spacing regardless of partial periods at the edges.
+function calendarMidpointIdxs(dates: string[], period: 'month' | 'year'): number[] {
+  const sliceTo = period === 'year' ? 4 : 7;
+  const midSuffix = period === 'year' ? '-07-01' : '-15';
+  const unique = [...new Set(dates.map(d => d.slice(0, sliceTo)))];
+  const first = dates[0].slice(0, 10);
+  const last = dates[dates.length - 1].slice(0, 10);
+  return unique
+    .map(key => `${key}${midSuffix}`)
+    .filter(mid => mid >= first && mid <= last)
+    .map(mid => {
+      let bestIdx = 0, bestDist = Infinity;
+      dates.forEach((d, i) => {
+        const dist = Math.abs(
+          new Date(d.slice(0, 10) + 'T12:00:00').getTime() -
+          new Date(mid + 'T12:00:00').getTime(),
+        );
+        if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+      });
+      return bestIdx;
+    });
+}
+
 type ChartMode = 'value' | 'gain' | 'return';
 
 const CHART_MODES: { id: ChartMode; label: string }[] = [
@@ -280,10 +305,11 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
   }
 
   const xLabelIdxs = (() => {
+    const dates = filtered.map(s => s.date);
     if (timeRange === 'max')
-      return midpointsByKey(s => s.date.slice(0, 4));
+      return calendarMidpointIdxs(dates, 'year');
     if (/^\d{4}$/.test(timeRange))
-      return midpointsByKey(s => s.date.slice(0, 7));
+      return calendarMidpointIdxs(dates, 'month');
     if (timeRange === 'today' || timeRange === '1w')
       return midpointsByKey(s => s.date);
     if (timeRange === '1m') {
@@ -294,7 +320,7 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
       });
     }
     if (timeRange === '3m' || timeRange === '6m' || timeRange === 'ytd')
-      return midpointsByKey(s => s.date.slice(0, 7));
+      return calendarMidpointIdxs(dates, 'month');
     const labelCount = Math.min(n, 7);
     return Array.from({ length: labelCount }, (_, i) =>
       Math.round(i * (n - 1) / (labelCount - 1)),
@@ -561,6 +587,7 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
   const [selectedSymbol, setSelectedSymbol] = useState<string>(() => uniqueHoldings[0]?.symbol ?? '');
   const [range, setRange] = useState<StockRange>('Today');
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [tradingHoursOnly, setTradingHoursOnly] = useState(true);
 
   // Keep selectedSymbol valid when holdings change
   useEffect(() => {
@@ -581,23 +608,34 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
 
   const points = data?.points ?? [];
 
+  const displayPoints = (range === 'Today' && tradingHoursOnly && points.length)
+    ? points.filter(p => {
+        const d = new Date(p.date);
+        const [h, m] = d.toLocaleTimeString('en-US', {
+          hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York',
+        }).split(':').map(Number);
+        const em = h * 60 + m;
+        return em >= 570 && em <= 960;
+      })
+    : points;
+
   if (!uniqueHoldings.length) return null;
 
   // ── SVG layout ──
   const W = 800, H = 300;
   const ml = 72, mr = 20, mt = 20, mb = 44;
   const cW = W - ml - mr, cH = H - mt - mb;
-  const n = points.length;
+  const n = displayPoints.length;
 
-  const firstClose = points[0]?.close ?? 0;
-  const lastClose = points[n - 1]?.close ?? 0;
+  const firstClose = displayPoints[0]?.close ?? 0;
+  const lastClose = displayPoints[n - 1]?.close ?? 0;
   const isUp = lastClose >= firstClose;
   const lineColor = isUp ? 'var(--color-gain)' : 'var(--color-loss)';
   const fillId = 'stockAreaGrad';
 
   function xOf(i: number) { return ml + (i / Math.max(n - 1, 1)) * cW; }
 
-  const closes = points.map(p => p.close);
+  const closes = displayPoints.map(p => p.close);
   const minClose = n ? Math.min(...closes) : 0;
   const maxClose = n ? Math.max(...closes) : 1;
   const pad = (maxClose - minClose) * 0.08 || maxClose * 0.05 || 1;
@@ -607,7 +645,7 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
 
   function yOf(v: number) { return mt + cH - ((v - yMin) / yRange) * cH; }
 
-  const linePath = n >= 2 ? points.reduce<string>((acc, p, i) => {
+  const linePath = n >= 2 ? displayPoints.reduce<string>((acc, p, i) => {
     return acc + (i === 0 ? `M${xOf(i)},${yOf(p.close)}` : ` L${xOf(i)},${yOf(p.close)}`);
   }, '') : '';
 
@@ -621,7 +659,11 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
     const rawStep = yRange / targetCount;
     const mag = Math.pow(10, Math.floor(Math.log10(Math.max(Math.abs(rawStep), 1e-9))));
     const norm = rawStep / mag;
-    const niceStep = norm <= 1 ? mag : norm <= 2 ? 2 * mag : norm <= 5 ? 5 * mag : 10 * mag;
+    let niceStep = norm <= 1 ? mag : norm <= 2 ? 2 * mag : norm <= 5 ? 5 * mag : 10 * mag;
+    // Enforce minimum step matching fmtPrice display precision to prevent duplicate labels
+    const midPrice = (yMin + yMax) / 2;
+    const minStep = midPrice >= 10_000 ? 1_000 : midPrice >= 1_000 ? 100 : midPrice >= 100 ? 1 : midPrice >= 10 ? 0.1 : 0.01;
+    niceStep = Math.max(niceStep, minStep);
     const start = Math.ceil(yMin / niceStep) * niceStep;
     const ticks: number[] = [];
     for (let v = start; v <= yMax + niceStep * 0.01; v += niceStep) {
@@ -633,7 +675,7 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
   function fmtXDate(d: string) {
     // Intraday dates are full ISO timestamps; daily dates are YYYY-MM-DD
     const dt = d.includes('T') ? new Date(d) : new Date(d + 'T12:00:00');
-    if (range === 'Today')                 return dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    if (range === 'Today')                 return dt.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true, timeZone: 'America/New_York' });
     if (range === '1W')                    return dt.toLocaleDateString('en-US', { weekday: 'short' });
     if (range === '1M') {
       const firstMs = points.length ? new Date(points[0].date.includes('T') ? points[0].date : points[0].date + 'T12:00:00').getTime() : dt.getTime();
@@ -648,17 +690,8 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
   const xLabelIdxs = (() => {
     if (n <= 1) return [0];
     if (range === 'YTD' || range === '1Y' || range === '3M' || range === '6M' || range === 'MAX' || range === '5Y') {
-      // One label per unique month (or year for MAX/5Y), at the midpoint of each group
-      const keyFn = (range === 'MAX' || range === '5Y')
-        ? (d: string) => d.slice(0, 4)   // YYYY
-        : (d: string) => d.slice(0, 7);  // YYYY-MM
-      const groups = new Map<string, { first: number; last: number }>();
-      points.forEach((p, i) => {
-        const key = keyFn(p.date);
-        const g = groups.get(key);
-        groups.set(key, g ? { first: g.first, last: i } : { first: i, last: i });
-      });
-      return [...groups.values()].map(({ first, last }) => Math.round((first + last) / 2));
+      const period = (range === 'MAX' || range === '5Y') ? 'year' : 'month';
+      return calendarMidpointIdxs(displayPoints.map(p => p.date), period);
     }
     const count = range === '1M' ? Math.min(n, 4) : Math.min(n, 6);
     return Array.from({ length: count }, (_, i) => Math.round(i * (n - 1) / (count - 1)));
@@ -670,7 +703,7 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
     return { dollar, pct: (dollar / firstClose) * 100 };
   }
 
-  const hovPoint = hoverIdx !== null ? points[hoverIdx] : null;
+  const hovPoint = hoverIdx !== null ? displayPoints[hoverIdx] : null;
 
   return (
     <div className="card p-6 no-privacy">
@@ -693,10 +726,22 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
         </select>
 
         <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          {range === 'Today' && (
+            <button
+              onClick={() => { setTradingHoursOnly(v => !v); setHoverIdx(null); }}
+              className="px-2.5 py-1 rounded-full text-xs font-medium transition-all shrink-0"
+              style={{
+                backgroundColor: tradingHoursOnly ? 'var(--color-accent)' : 'var(--color-surface-secondary)',
+                color: tradingHoursOnly ? '#fff' : 'var(--color-secondary)',
+              }}
+            >
+              Market Hours
+            </button>
+          )}
           {STOCK_RANGES.map(r => (
             <button
               key={r}
-              onClick={() => { setRange(r); setHoverIdx(null); }}
+              onClick={() => { setRange(r); setHoverIdx(null); if (r !== 'Today') setTradingHoursOnly(false); }}
               className="px-2.5 py-1 rounded-full text-xs font-medium transition-all shrink-0"
               style={{
                 backgroundColor: range === r ? 'var(--color-accent)' : 'var(--color-surface-secondary)',
@@ -765,9 +810,42 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
           {xLabelIdxs.map(idx => (
             <text key={idx} x={xOf(idx)} y={mt + cH + 22} textAnchor="middle" fontSize={10}
               style={{ fill: 'var(--color-secondary)' }}>
-              {fmtXDate(points[idx].date)}
+              {fmtXDate(displayPoints[idx].date)}
             </text>
           ))}
+
+          {/* Pre/after-market shading for Today view (hidden when trading hours filter is on) */}
+          {range === 'Today' && !tradingHoursOnly && (() => {
+            const getETMin = (d: Date) => {
+              const [h, m] = d.toLocaleTimeString('en-US', {
+                hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York',
+              }).split(':').map(Number);
+              return h * 60 + m;
+            };
+            let openIdx = 0, closeIdx = n - 1;
+            let dOpen = Infinity, dClose = Infinity;
+            points.forEach((p, i) => {
+              const em = getETMin(new Date(p.date));
+              if (Math.abs(em - 570) < dOpen)  { dOpen  = Math.abs(em - 570); openIdx  = i; } // 9:30
+              if (Math.abs(em - 960) < dClose) { dClose = Math.abs(em - 960); closeIdx = i; } // 16:00
+            });
+            const xOpen  = xOf(openIdx);
+            const xClose = xOf(closeIdx);
+            const shade = 'rgba(255,255,255,0.04)';
+            const divider = 'rgba(255,255,255,0.15)';
+            return (
+              <g>
+                {xOpen > ml + 8 && <>
+                  <rect x={ml} y={mt} width={xOpen - ml} height={cH} fill={shade} />
+                  <line x1={xOpen} y1={mt} x2={xOpen} y2={mt + cH} stroke={divider} strokeWidth={1} strokeDasharray="3 2" />
+                </>}
+                {xClose < ml + cW - 8 && <>
+                  <rect x={xClose} y={mt} width={ml + cW - xClose} height={cH} fill={shade} />
+                  <line x1={xClose} y1={mt} x2={xClose} y2={mt + cH} stroke={divider} strokeWidth={1} strokeDasharray="3 2" />
+                </>}
+              </g>
+            );
+          })()}
 
           {/* Area fill */}
           <path d={areaPath} fill={`url(#${fillId})`} />
@@ -781,7 +859,7 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
             <>
               <line x1={xOf(hoverIdx)} y1={mt} x2={xOf(hoverIdx)} y2={mt + cH}
                 stroke="var(--color-secondary)" strokeWidth={1} strokeDasharray="3 2" opacity={0.45} />
-              <circle cx={xOf(hoverIdx)} cy={yOf(points[hoverIdx].close)} r={4}
+              <circle cx={xOf(hoverIdx)} cy={yOf(displayPoints[hoverIdx].close)} r={4}
                 fill={lineColor} stroke="var(--color-surface)" strokeWidth={2} />
             </>
           )}
@@ -810,7 +888,7 @@ function StockPriceChart({ holdings }: { holdings: HoldingWithMetrics[] }) {
                 <text x={tX + 10} y={mt + 17} fontSize={11} fontWeight="600"
                   style={{ fill: 'var(--color-secondary)' }}>
                   {hovPoint.date.includes('T')
-                    ? new Date(hovPoint.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                    ? new Date(hovPoint.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York' })
                     : hovPoint.date}
                 </text>
                 <text x={tX + 10} y={mt + 36} fontSize={14} fontWeight="700"

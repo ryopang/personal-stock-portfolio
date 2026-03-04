@@ -42,12 +42,20 @@ export async function GET(req: NextRequest) {
 
     if (range === 'Today') {
       // Use chart() for intraday 5-minute bars — historical() only supports daily/weekly
-      const result = await yahooFinance.chart(symbol, { period1: today, interval: '5m' });
+      // Use ET date as period1 so we don't accidentally include the previous evening's
+      // after-hours (midnight UTC = 7–8 PM ET, which is still the prior trading day)
+      const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      const result = await yahooFinance.chart(symbol, { period1: todayET, interval: '5m' });
       points = (result.quotes ?? [])
         .filter((q) => q.close != null)
         .map((q) => {
           const d = q.date instanceof Date ? q.date : new Date(q.date);
           return { date: d.toISOString(), close: q.close! };
+        })
+        // Keep only bars that fall on today in ET timezone
+        .filter((p) => {
+          const ptET = new Date(p.date).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+          return ptET === todayET;
         });
     } else {
       const { period1, interval } = periodFromRange(range);

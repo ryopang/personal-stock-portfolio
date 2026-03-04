@@ -49,15 +49,10 @@ export default function PortfolioSummary({
     <div className="card p-4 md:p-6">
       {/* Header row */}
       <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-semibold text-secondary uppercase tracking-widest">
-          Portfolio Value
-        </p>
-        <div className="flex items-center gap-2">
-          {lastUpdated && (
-            <span className="hidden sm:block text-xs text-tertiary">
-              Updated {formatTime(lastUpdated.toISOString())}
-            </span>
-          )}
+        <div className="flex items-center gap-1">
+          <p className="text-xs font-semibold text-secondary uppercase tracking-widest">
+            Portfolio Value
+          </p>
           <button
             onClick={() => setHidden(h => !h)}
             className="flex items-center justify-center rounded-lg text-secondary hover:bg-accent/10 active:bg-accent/20 transition-colors"
@@ -76,6 +71,13 @@ export default function PortfolioSummary({
               </svg>
             )}
           </button>
+        </div>
+        <div className="flex items-center gap-2">
+          {lastUpdated && (
+            <span className="hidden sm:block text-xs text-tertiary">
+              Updated {formatTime(lastUpdated.toISOString())}
+            </span>
+          )}
           <button
             onClick={onRefresh}
             disabled={isRefreshing}

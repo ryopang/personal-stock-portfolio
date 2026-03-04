@@ -7,51 +7,85 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 ## Features
 
 ### Holdings Management
-- Add, edit, and delete individual holdings (stocks, ETFs, crypto)
-- Track quantity, cost basis, purchase date, and industry/sector label
-- Import holdings in bulk via CSV
-- Import historical portfolio snapshots for trend tracking
-- Confirm-to-delete safeguard to prevent accidental data loss
+- Add holdings via **symbol autocomplete search** — type a ticker and pick from live Yahoo Finance suggestions
+- **Edit** any holding's quantity, cost basis, purchase date, industry label, or asset type
+- **Delete** individual holdings with a single-click confirmation prompt
+- **Clear all** holdings via the Admin menu — requires typing `DELETE` to confirm, preventing accidental wipes
+- **Import holdings in bulk via CSV** — upload a file mapping symbol, quantity, cost basis, date, type, and industry
+- **Import historical snapshots** — load past portfolio value data to backfill the trend chart without waiting for organic snapshots to accumulate
 
 ### Portfolio Overview
-- Live total portfolio value with daily and all-time gain/loss
-- Per-holding metrics: current price, daily change, total return, 52-week range
-- Mover badges — click to filter the holdings table to top gainers or losers
-- Manual quote refresh with optimistic UI updates
+- **Live total portfolio value** with a directional arrow indicator (up/down) colored by today's performance
+- **Summary metrics row**: today's daily change (dollar + percent), total amount invested, and total all-time gain/loss
+- **Mover badges** in the Today column — click the green up-arrow badge to filter the table to gainers, the red down-arrow to filter to losers; click again to clear
+- **Manual quote refresh** with a spinning indicator and optimistic UI; timestamp shows when prices were last fetched
+- **Asset type tabs** (All / Stocks / ETFs / Crypto) — only tabs with holdings appear; each shows a unique symbol count badge
+- **Industry filter chips** — one chip per industry detected in the current tab's holdings; click a chip to narrow the table to that sector; click again to clear
+- **Column sorting** — click any table header (Investment, Price, Quantity, Avg Cost, Total Cost, Current Value, Daily Change, Total G/L, 52W Range) to sort ascending; click again to reverse
+- **Alert filter** (👀 button in the Investment column header) — filters the table to only holdings with a daily move greater than 5%
+- **Table totals footer** — live aggregate of Total Cost, Current Value, Daily Change, and Total G/L across the currently filtered view
+- **52-week range bar** — visual indicator of where the current price sits within the 52-week high/low for each holding
+- **Mobile card layout** — holdings render as stacked cards on small screens with the same key metrics and edit/delete actions
 
 ### Charts
-- **Industry distribution donut chart** — visual breakdown by sector/industry with interactive legend; click a slice to overlay its gain/loss on the trend chart
-- **Portfolio trend line chart** — historical portfolio value, total gain/loss, or total return % over configurable time ranges (1W → MAX, including per-year views)
-- **Individual stock price chart** — intraday and multi-year price history with area fill, hover tooltips, and time range selector
+
+#### Industry Distribution Donut
+- Visual pie/donut breakdown of portfolio by sector or industry label
+- Hover a slice to see the industry name, allocation percentage, and current value in the center label
+- Click a slice (or its row in the legend table) to **overlay that industry's cumulative gain/loss** on the Portfolio Trend chart
+- Legend table shows cost, current value, daily change, and total G/L per industry; rows highlight on hover
+- **Clear** button appears when an industry is selected
+
+#### Portfolio Trend Line Chart
+- Plots historical **portfolio value**, **total gain/loss**, or **total return %** — switchable via dropdown
+- Time range pills: **1W, 1M, 3M, 6M, YTD**, per-calendar-year buttons (e.g. `24'`, `25'`), and **MAX**
+- X-axis labels use calendar midpoints for clean, evenly-spaced date ticks regardless of partial periods
+- Hover to see a crosshair + tooltip with the exact value for that date
+- Period summary line above the chart shows start-to-end change for the selected range
+- Industry overlay lines (dashed) appear automatically for all industries when none is selected; solid and primary when one is pinned
+- Respects **privacy mode** — monetary values blur when privacy is enabled
+
+#### Individual Stock Price Chart
+- Per-symbol intraday and multi-year price history fetched from Yahoo Finance
+- Symbol selector dropdown (deduplicated; sorted alphabetically)
+- Time range pills: **Today, 1W, 1M, 3M, 6M, YTD, 1Y, 5Y, MAX**
+- **Market Hours toggle** (Today view only) — filters to regular trading hours (9:30–16:00 ET); pre- and after-market sessions are shaded when the full day is shown
+- Area fill gradient and colored price line (green if up, red if down from period open)
+- Hover crosshair with a dot snapping to the nearest data point and a tooltip showing time, price, dollar change, and percent change
+- Adaptive x-axis labels (time of day, weekday, week number, month, or year depending on range)
 
 ### Analysis Tab
+- **Language toggle** — switch between English and Traditional Chinese (繁中); affects both AI analysis and the Investment Advisor chatbot
 - **Market news** — broad market headlines fetched from Yahoo Finance
-- **Portfolio news** — news filtered to your specific holdings, with per-symbol filtering
-- **AI analysis** — LLM-powered portfolio commentary with per-holding verdict badges (BUY / HOLD / TRIM / EXIT, etc.), in English or Traditional Chinese, persisted across page reloads via Redis; choose between **Gemini 2.5 Flash** or **Groq (Llama 3.3)**
+- **Portfolio news** — news filtered to your specific holdings; per-symbol pill filters to narrow by ticker
+- **AI analysis** — LLM-generated portfolio commentary covering overall assessment, individual holding verdicts (BUY / HOLD / TRIM / EXIT, etc.), and risk notes
+  - Provider selector: **Gemini 2.5 Flash** or **Groq (Llama 3.3 70B)**
+  - Analysis is **persisted to Redis** and survives page reloads; a "Regenerate" button refreshes it on demand
 
 ### Investment Advisor Chatbot
-- **Floating chat panel** — always-accessible button in the bottom-right corner opens a conversation interface
-- **Portfolio-aware context** — the LLM receives your full holdings, allocations, cost bases, and today's performance figures so answers are specific to your situation
-- **Multi-LLM** — switch between **Gemini 2.5 Flash** and **Groq (Llama 3.3 70B)** mid-session via the in-header dropdown
-- **Streaming responses** with a stop button; typing indicator while waiting
+- **Floating chat panel** — always-accessible button in the bottom-right corner; the page blurs behind the panel when it is open
+- **Portfolio-aware context** — the LLM receives your full holdings, allocations, cost bases, and today's performance figures so answers are grounded in your actual situation
+- **Multi-LLM** — switch between Gemini 2.5 Flash and Groq (Llama 3.3 70B) mid-session via the in-header dropdown
+- **Streaming responses** with a stop button; a typing indicator appears while waiting for the first token
 - **Suggested starter questions** — generic investing questions when the portfolio is empty; portfolio-specific prompts (concentration risk, drawdown analysis, trimming candidates) when holdings are loaded
-- **Markdown rendering** — section headings, bullet lists, inline bold; tickers, percentages, and dollar amounts are syntax-highlighted
-- **Multilingual** — respects the EN / 繁中 language toggle set in the Analysis tab
+- **Markdown rendering** — section headings, bullet lists, inline bold; tickers, percentages, and dollar amounts are syntax-highlighted in distinct colors
+- **Multilingual** — responds in whichever language is set in the Analysis tab toggle
 
 ### UX Details
-- **Dark mode by default** — toggleable; preference persisted to `localStorage`
-- **Privacy mode** — one-click to blur all monetary values (useful for screen sharing)
-- **Portfolio value toggle** — eye button on the summary card selectively hides sensitive figures (total value, invested, P&L amounts; percentage-only for today's change); hidden by default on page load
-- **Password gate** — lightweight client-side access control with session persistence
-- **Sticky header** — portfolio summary and navigation tabs remain visible while scrolling
-- **Responsive layout** — works on mobile and desktop
+- **Dark mode by default** — new visitors start in dark mode; the toggle (sun/moon icon) persists the preference to `localStorage`
+- **Global privacy mode** — eye icon in the header blurs all monetary values site-wide (useful for screen sharing); separate from the summary card's per-field toggle
+- **Portfolio value toggle** — eye button on the summary card selectively hides sensitive figures (total value, invested, P&L amounts; today's daily change keeps the dollar amount but hides the percent); hidden by default on page load
+- **Password gate** — lightweight client-side access control; session persists via `sessionStorage` so you don't re-enter on reload
+- **Sticky header** — portfolio summary, view tabs, and type/industry filter bar all remain visible while scrolling
+- **Optimistic mutations** — add, edit, and delete operations update the UI immediately and roll back if the server request fails
+- **Responsive layout** — works on mobile and desktop; table switches to card layout, column padding and fonts tighten on small screens
 
 ---
 
 ## Changelog
 
 ### March 2026
-- **Portfolio value toggle** — eye button on the summary card masks sensitive figures on the summary card: total portfolio value, total invested, and total P&L show `••••••`; today's daily change keeps the dollar amount visible but hides the percentage; hidden by default on page load
+- **Portfolio value toggle** — eye button on the summary card masks sensitive figures: total portfolio value, total invested, and total P&L show `••••••`; today's daily change keeps the dollar amount visible but hides the percentage; hidden by default on page load
 - **UI polish — mobile & holdings table**
   - Price column moved between Investment and Quantity in the holdings table
   - Mobile holding cards now show the 👀 mover alert indicator; edit/delete touch targets enlarged to ~44px; `-USD` suffix stripped from crypto symbol display
@@ -134,7 +168,8 @@ src/
 │   ├── MarketNews.tsx / PortfolioNews.tsx
 │   ├── AddHoldingModal.tsx
 │   ├── CSVImportModal.tsx
-│   └── HistoricalImportModal.tsx
+│   ├── HistoricalImportModal.tsx
+│   └── SymbolSearch.tsx   # Autocomplete ticker search
 ├── hooks/
 │   ├── usePortfolio.ts    # Composites holdings + live quotes → metrics
 │   └── useQuotes.ts
