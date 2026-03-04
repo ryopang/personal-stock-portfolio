@@ -41,6 +41,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 ### UX Details
 - **Dark mode by default** — toggleable; preference persisted to `localStorage`
 - **Privacy mode** — one-click to blur all monetary values (useful for screen sharing)
+- **Portfolio value toggle** — eye button on the summary card selectively hides sensitive figures (total value, invested, P&L amounts; percentage-only for today's change); hidden by default on page load
 - **Password gate** — lightweight client-side access control with session persistence
 - **Sticky header** — portfolio summary and navigation tabs remain visible while scrolling
 - **Responsive layout** — works on mobile and desktop
@@ -50,6 +51,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 ## Changelog
 
 ### March 2026
+- **Portfolio value toggle** — eye button on the summary card masks sensitive figures on the summary card: total portfolio value, total invested, and total P&L show `••••••`; today's daily change keeps the dollar amount visible but hides the percentage; hidden by default on page load
 - **UI polish — mobile & holdings table**
   - Price column moved between Investment and Quantity in the holdings table
   - Mobile holding cards now show the 👀 mover alert indicator; edit/delete touch targets enlarged to ~44px; `-USD` suffix stripped from crypto symbol display
