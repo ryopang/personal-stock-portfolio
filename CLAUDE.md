@@ -1,6 +1,20 @@
-# Stock Performance Dashboard — Claude Instructions
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 Project-specific instructions that layer on top of `~/.claude/CLAUDE.md`.
+
+---
+
+## Commands
+
+```bash
+npm run dev      # start dev server (localhost:3000)
+npm run build    # production build + type-check
+npm run lint     # ESLint (no --fix by default)
+```
+
+There is no test suite. TypeScript type-checking runs as part of `next build`.
 
 ---
 
