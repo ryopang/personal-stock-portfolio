@@ -1,9 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+
 import PriceChange from './PriceChange';
 import { formatCurrency, formatCurrencyK, formatCurrencyWhole, formatQuantity } from '@/lib/formatters';
 import type { HoldingWithMetrics } from '@/lib/types';
+
+function FiftyTwoWeekBar({ low, high, current }: { low: number; high: number; current: number }) {
+  const range = high - low;
+  const rawPct = range > 0 ? ((current - low) / range) * 100 : 50;
+  const pct = Math.max(2, Math.min(98, rawPct));
+  return (
+    <div
+      className="flex flex-col items-center gap-1"
+      title={`52W Low: ${formatCurrency(low)}  ·  52W High: ${formatCurrency(high)}  ·  ${rawPct.toFixed(1)}% of range`}
+    >
+      <div className="relative w-16 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
+        <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, backgroundColor: 'var(--color-accent)' }} />
+        <div
+          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full"
+          style={{ left: `calc(${pct}% - 5px)`, backgroundColor: 'var(--color-accent)', boxShadow: '0 0 0 2px var(--color-surface)' }}
+        />
+      </div>
+      <div className="flex justify-between w-16">
+        <span className="text-[9px] tabular-nums" style={{ color: 'var(--color-secondary)' }}>
+          {low >= 1000 ? formatCurrencyK(low) : formatCurrencyWhole(low)}
+        </span>
+        <span className="text-[9px] tabular-nums" style={{ color: 'var(--color-secondary)' }}>
+          {high >= 1000 ? formatCurrencyK(high) : formatCurrencyWhole(high)}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   holding: HoldingWithMetrics;
@@ -21,22 +49,14 @@ interface GroupSummaryProps {
 
 // Desktop table row
 export function HoldingTableRow({ holding, onEdit, onDelete, isChild }: Props) {
-  const [showActions, setShowActions] = useState(false);
-
-  const rowBgClass = showActions
-    ? 'row-bg-hover'
-    : holding.dailyChange > 0
+  const rowBgClass = holding.dailyChange > 0
     ? 'row-bg-gain'
     : holding.dailyChange < 0
     ? 'row-bg-loss'
     : '';
 
   return (
-    <tr
-      className={`group border-b border-border last:border-0 transition-colors ${rowBgClass}`}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
-    >
+    <tr className={`group border-b border-border last:border-0 transition-colors hover:row-bg-hover ${rowBgClass}`}>
 
       {/* Symbol + Name + hover actions */}
       <td className="py-2 pl-3 pr-2">
@@ -53,7 +73,7 @@ export function HoldingTableRow({ holding, onEdit, onDelete, isChild }: Props) {
             )}
           </div>
           <span className={`font-semibold text-sm ${isChild ? 'text-secondary' : 'text-primary'}`}>{holding.symbol.replace(/-USD$/, '')}</span>
-          <div className={`flex items-center gap-1 transition-opacity duration-150 ${showActions ? 'opacity-100' : 'opacity-0'}`}>
+          <div className="flex items-center gap-1 transition-opacity duration-150 opacity-0 group-hover:opacity-100">
             <button
               onClick={() => onEdit(holding)}
               className="p-1 rounded text-tertiary hover:text-accent hover:bg-accent/10 transition-colors"
@@ -121,42 +141,9 @@ export function HoldingTableRow({ holding, onEdit, onDelete, isChild }: Props) {
 
       {/* 52-Week Range */}
       <td className="py-1.5 px-2 pr-3 text-center">
-        {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null ? (() => {
-          const range = holding.fiftyTwoWeekHigh - holding.fiftyTwoWeekLow;
-          const rawPct = range > 0 ? ((holding.currentPrice - holding.fiftyTwoWeekLow) / range) * 100 : 50;
-          const pct = Math.max(2, Math.min(98, rawPct));
-          return (
-            <div
-              className="flex flex-col items-center gap-1"
-              title={`52W Low: ${formatCurrency(holding.fiftyTwoWeekLow)}  ·  52W High: ${formatCurrency(holding.fiftyTwoWeekHigh)}  ·  ${rawPct.toFixed(1)}% of range`}
-            >
-              {/* Track + fill + marker */}
-              <div className="relative w-16 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
-                <div
-                  className="absolute inset-y-0 left-0 rounded-full"
-                  style={{ width: `${pct}%`, backgroundColor: 'var(--color-accent)' }}
-                />
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full"
-                  style={{
-                    left: `calc(${pct}% - 5px)`,
-                    backgroundColor: 'var(--color-accent)',
-                    boxShadow: '0 0 0 2px var(--color-surface)',
-                  }}
-                />
-              </div>
-              {/* Low / High labels */}
-              <div className="flex justify-between w-16">
-                <span className="text-[9px] tabular-nums" style={{ color: 'var(--color-secondary)' }}>
-                  {holding.fiftyTwoWeekLow >= 1000 ? formatCurrencyK(holding.fiftyTwoWeekLow) : formatCurrencyWhole(holding.fiftyTwoWeekLow)}
-                </span>
-                <span className="text-[9px] tabular-nums" style={{ color: 'var(--color-secondary)' }}>
-                  {holding.fiftyTwoWeekHigh >= 1000 ? formatCurrencyK(holding.fiftyTwoWeekHigh) : formatCurrencyWhole(holding.fiftyTwoWeekHigh)}
-                </span>
-              </div>
-            </div>
-          );
-        })() : (
+        {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null ? (
+          <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
+        ) : (
           <span className="text-xs" style={{ color: 'var(--color-secondary)' }}>—</span>
         )}
       </td>
@@ -166,11 +153,7 @@ export function HoldingTableRow({ holding, onEdit, onDelete, isChild }: Props) {
 
 // Desktop grouped summary row (collapsed state)
 export function GroupSummaryTableRow({ lotCount, aggregate: holding, expanded, onToggle }: GroupSummaryProps) {
-  const [showHover, setShowHover] = useState(false);
-
-  const rowBgClass = showHover
-    ? 'row-bg-hover'
-    : holding.dailyChange > 0
+  const rowBgClass = holding.dailyChange > 0
     ? 'row-bg-gain'
     : holding.dailyChange < 0
     ? 'row-bg-loss'
@@ -178,10 +161,8 @@ export function GroupSummaryTableRow({ lotCount, aggregate: holding, expanded, o
 
   return (
     <tr
-      className={`group border-b border-border transition-colors cursor-pointer ${rowBgClass}`}
+      className={`group border-b border-border transition-colors cursor-pointer hover:row-bg-hover ${rowBgClass}`}
       onClick={onToggle}
-      onMouseEnter={() => setShowHover(true)}
-      onMouseLeave={() => setShowHover(false)}
     >
       {/* Symbol + lot count + expand toggle */}
       <td className="py-2 pl-3 pr-2">
@@ -257,27 +238,9 @@ export function GroupSummaryTableRow({ lotCount, aggregate: holding, expanded, o
 
       {/* 52-Week Range */}
       <td className="py-1.5 px-2 pr-3 text-center">
-        {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null ? (() => {
-          const range = holding.fiftyTwoWeekHigh - holding.fiftyTwoWeekLow;
-          const rawPct = range > 0 ? ((holding.currentPrice - holding.fiftyTwoWeekLow) / range) * 100 : 50;
-          const pct = Math.max(2, Math.min(98, rawPct));
-          return (
-            <div className="flex flex-col items-center gap-1" title={`52W Low: ${formatCurrency(holding.fiftyTwoWeekLow)}  ·  52W High: ${formatCurrency(holding.fiftyTwoWeekHigh)}  ·  ${rawPct.toFixed(1)}% of range`}>
-              <div className="relative w-16 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
-                <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, backgroundColor: 'var(--color-accent)' }} />
-                <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full" style={{ left: `calc(${pct}% - 5px)`, backgroundColor: 'var(--color-accent)', boxShadow: '0 0 0 2px var(--color-surface)' }} />
-              </div>
-              <div className="flex justify-between w-16">
-                <span className="text-[9px] tabular-nums" style={{ color: 'var(--color-secondary)' }}>
-                  {holding.fiftyTwoWeekLow >= 1000 ? formatCurrencyK(holding.fiftyTwoWeekLow) : formatCurrencyWhole(holding.fiftyTwoWeekLow)}
-                </span>
-                <span className="text-[9px] tabular-nums" style={{ color: 'var(--color-secondary)' }}>
-                  {holding.fiftyTwoWeekHigh >= 1000 ? formatCurrencyK(holding.fiftyTwoWeekHigh) : formatCurrencyWhole(holding.fiftyTwoWeekHigh)}
-                </span>
-              </div>
-            </div>
-          );
-        })() : (
+        {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null ? (
+          <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
+        ) : (
           <span className="text-xs" style={{ color: 'var(--color-secondary)' }}>—</span>
         )}
       </td>
@@ -297,14 +260,6 @@ export function GroupCard({
     : holding.dailyChange < 0
     ? 'row-bg-loss'
     : '';
-
-  const range = holding.fiftyTwoWeekHigh != null && holding.fiftyTwoWeekLow != null
-    ? holding.fiftyTwoWeekHigh - holding.fiftyTwoWeekLow
-    : null;
-  const rawPct = range != null && range > 0
-    ? ((holding.currentPrice - holding.fiftyTwoWeekLow!) / range) * 100
-    : null;
-  const pct = rawPct != null ? Math.max(2, Math.min(98, rawPct)) : null;
 
   return (
     <button
@@ -384,23 +339,12 @@ export function GroupCard({
               size="sm"
             />
           </div>
-          {pct != null && rawPct != null && (
+          {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null && (
             <div className="w-16 shrink-0">
               <div className="mb-1.5">
                 <span className="text-[10px] text-secondary">52W</span>
               </div>
-              <div className="relative w-full h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
-                <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, backgroundColor: 'var(--color-accent)' }} />
-                <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full" style={{ left: `calc(${pct}% - 5px)`, backgroundColor: 'var(--color-accent)', boxShadow: '0 0 0 2px var(--color-surface)' }} />
-              </div>
-              <div className="flex justify-between mt-1">
-                <span className="text-[9px] tabular-nums text-secondary">
-                  {holding.fiftyTwoWeekLow! >= 1000 ? formatCurrencyK(holding.fiftyTwoWeekLow!) : formatCurrencyWhole(holding.fiftyTwoWeekLow!)}
-                </span>
-                <span className="text-[9px] tabular-nums text-secondary">
-                  {holding.fiftyTwoWeekHigh! >= 1000 ? formatCurrencyK(holding.fiftyTwoWeekHigh!) : formatCurrencyWhole(holding.fiftyTwoWeekHigh!)}
-                </span>
-              </div>
+              <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
             </div>
           )}
         </div>
@@ -497,40 +441,14 @@ export function HoldingCard({ holding, onEdit, onDelete }: Props) {
               size="sm"
             />
           </div>
-          {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null && (() => {
-            const range = holding.fiftyTwoWeekHigh - holding.fiftyTwoWeekLow;
-            const rawPct = range > 0 ? ((holding.currentPrice - holding.fiftyTwoWeekLow) / range) * 100 : 50;
-            const pct = Math.max(2, Math.min(98, rawPct));
-            return (
-              <div className="w-16 shrink-0">
-                <div className="mb-1.5">
-                  <span className="text-[10px] text-secondary">52W</span>
-                </div>
-                <div className="relative w-full h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
-                  <div
-                    className="absolute inset-y-0 left-0 rounded-full"
-                    style={{ width: `${pct}%`, backgroundColor: 'var(--color-accent)' }}
-                  />
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full"
-                    style={{
-                      left: `calc(${pct}% - 5px)`,
-                      backgroundColor: 'var(--color-accent)',
-                      boxShadow: '0 0 0 2px var(--color-surface)',
-                    }}
-                  />
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-[9px] tabular-nums text-secondary">
-                    {holding.fiftyTwoWeekLow >= 1000 ? formatCurrencyK(holding.fiftyTwoWeekLow) : formatCurrencyWhole(holding.fiftyTwoWeekLow)}
-                  </span>
-                  <span className="text-[9px] tabular-nums text-secondary">
-                    {holding.fiftyTwoWeekHigh >= 1000 ? formatCurrencyK(holding.fiftyTwoWeekHigh) : formatCurrencyWhole(holding.fiftyTwoWeekHigh)}
-                  </span>
-                </div>
+          {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null && (
+            <div className="w-16 shrink-0">
+              <div className="mb-1.5">
+                <span className="text-[10px] text-secondary">52W</span>
               </div>
-            );
-          })()}
+              <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
+            </div>
+          )}
         </div>
       </div>
     </div>

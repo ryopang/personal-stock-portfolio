@@ -42,7 +42,7 @@ const NOT_TICKERS = new Set([
   'ETF', 'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'FOR', 'AND', 'BUT', 'NOT',
   'THE', 'ARE', 'HAS', 'ITS', 'ALL', 'NEW', 'TOP', 'HOW', 'WHY', 'CAN',
   'NOW', 'BIG', 'OLD', 'KEY', 'LOW', 'HIGH', 'EST', 'LLC', 'INC', 'LTD',
-  'IOT', 'API', 'IPO', 'SaaS', 'B2B', 'B2C', 'ROI', 'YOY', 'QOQ',
+  'IOT', 'API', 'SaaS', 'B2B', 'B2C', 'ROI', 'YOY', 'QOQ',
 ]);
 
 /**

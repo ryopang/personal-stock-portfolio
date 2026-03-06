@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, Fragment } from 'react';
 import { HoldingTableRow, HoldingCard, GroupCard, GroupSummaryTableRow } from './HoldingRow';
 import { TableSkeleton } from './LoadingSkeleton';
 import PriceChange from './PriceChange';
@@ -193,8 +193,9 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
   }, [holdings]);
 
   // Only show tabs that have holdings
-  const availableTabs = TABS.filter(
-    (tab) => tab.value === 'all' || holdings.some((h) => h.type === tab.value)
+  const availableTabs = useMemo(
+    () => TABS.filter((tab) => tab.value === 'all' || holdings.some((h) => h.type === tab.value)),
+    [holdings]
   );
 
   // Industry counts for the current filtered view
@@ -370,9 +371,8 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                       onDelete={onDelete}
                     />
                   ) : (
-                    <>
+                    <Fragment key={`group-${aggregate.symbol}`}>
                       <GroupSummaryTableRow
-                        key={`group-${aggregate.symbol}`}
                         lotCount={lots.length}
                         aggregate={aggregate}
                         expanded={expandedGroups.has(aggregate.symbol)}
@@ -387,7 +387,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                           isChild
                         />
                       ))}
-                    </>
+                    </Fragment>
                   )
                 )}
               </tbody>
@@ -401,21 +401,21 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                     </div>
                   </td>
                   {/* Price */}
-                  <td className="py-2px-2" />
+                  <td className="py-2 px-2" />
                   {/* Quantity */}
-                  <td className="py-2px-2" />
+                  <td className="py-2 px-2" />
                   {/* Avg Cost */}
-                  <td className="py-2px-2" />
+                  <td className="py-2 px-2" />
                   {/* Total Cost */}
                   <td className="py-2 px-2 text-sm font-bold text-primary tabular-nums text-center">
                     {formatCurrencyK(filteredTotals.totalCost)}
                   </td>
                   {/* Current Value */}
-                  <td className="py-2px-2 text-sm font-bold text-primary tabular-nums text-center">
+                  <td className="py-2 px-2 text-sm font-bold text-primary tabular-nums text-center">
                     {formatCurrencyK(filteredTotals.totalValue)}
                   </td>
                   {/* Daily Change */}
-                  <td className="py-2px-2 text-center">
+                  <td className="py-2 px-2 text-center">
                     <div className="flex flex-col items-center gap-0.5">
                       <PriceChange value={filteredTotals.totalDailyChange} format="currency" size="sm" noDecimals />
                       <PriceChange value={filteredTotals.totalDailyChange} percent={filteredTotals.dailyChangePct} format="percent" size="sm" className="opacity-70" />

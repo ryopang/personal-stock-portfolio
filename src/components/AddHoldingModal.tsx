@@ -154,12 +154,12 @@ export default function AddHoldingModal({ holding, onClose, onSave }: Props) {
                     key={t.value}
                     type="button"
                     onClick={() => setType(t.value)}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isEdit}
                     className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
                       type === t.value
                         ? 'bg-primary text-surface'
                         : 'bg-surface-secondary text-secondary hover:text-primary'
-                    }`}
+                    } disabled:opacity-60 disabled:cursor-not-allowed`}
                     style={{ touchAction: 'manipulation' }}
                   >
                     {t.label}

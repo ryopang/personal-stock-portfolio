@@ -15,6 +15,7 @@ interface UsePortfolioReturn {
   error: Error | undefined;
   refresh: () => Promise<void>;
   lastUpdated: Date | undefined;
+  missingQuoteSymbols: string[];
 }
 
 export function usePortfolio(): UsePortfolioReturn {
@@ -39,9 +40,17 @@ export function usePortfolio(): UsePortfolioReturn {
         if (!quote) return null;
         return computeHoldingMetrics(h, quote);
       })
-      .filter((h): h is HoldingWithMetrics => h !== null)
-      .sort((a, b) => b.currentValue - a.currentValue);
-  }, [holdings, quoteMap]);
+      .filter((h): h is HoldingWithMetrics => h !== null);
+  }, [holdings, quoteMap]);  // Note: sorting is handled by HoldingsSection's own sort logic
+
+  // Only report missing symbols after the first successful quote fetch.
+  // Before that, all holdings appear "missing" because the map is empty.
+  const missingQuoteSymbols = useMemo(() => {
+    if (!lastUpdated) return [];
+    return holdings
+      .filter((h) => !quoteMap.get(toYahooSymbol(h.symbol, h.type)))
+      .map((h) => h.symbol);
+  }, [holdings, quoteMap, lastUpdated]);
 
   const totals = useMemo(
     () => computePortfolioTotals(holdingsWithMetrics),
@@ -53,9 +62,7 @@ export function usePortfolio(): UsePortfolioReturn {
   // but always captures the current computed holdings/totals.
   const holdingsRef = useRef(holdingsWithMetrics);
   const totalsRef = useRef(totals);
-  // eslint-disable-next-line react-hooks/refs
   holdingsRef.current = holdingsWithMetrics;
-  // eslint-disable-next-line react-hooks/refs
   totalsRef.current = totals;
 
   useEffect(() => {
@@ -97,5 +104,6 @@ export function usePortfolio(): UsePortfolioReturn {
     error,
     refresh,
     lastUpdated,
+    missingQuoteSymbols,
   };
 }

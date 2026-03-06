@@ -137,11 +137,20 @@ function filterByTimeRange(snaps: DailySnapshot[], range: string): DailySnapshot
 
 interface TrendChartProps { industryColors: Map<string, string>; enabled: Set<string>; }
 
+const BENCHMARK_OPTIONS = [
+  { symbol: '^GSPC', label: 'S&P 500' },
+  { symbol: '^NDX',  label: 'Nasdaq 100' },
+  { symbol: '^DJI',  label: 'Dow Jones' },
+] as const;
+type BenchmarkSymbol = typeof BENCHMARK_OPTIONS[number]['symbol'];
+
 function TrendChart({ industryColors, enabled }: TrendChartProps) {
   const [mode, setMode] = useState<ChartMode>('value');
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [timeRange, setTimeRange] = useState<string>('ytd');
   const [isPrivate, setIsPrivate] = useState(false);
+  const [showBenchmark, setShowBenchmark] = useState(false);
+  const [benchmarkSymbol, setBenchmarkSymbol] = useState<BenchmarkSymbol>('^GSPC');
 
   useEffect(() => {
     const check = () => setIsPrivate(document.documentElement.classList.contains('privacy-mode'));
@@ -169,6 +178,44 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
     [snapshots, timeRange],
   );
 
+  // Benchmark: fetch historical data aligned to the current filtered period start
+  const benchmarkPeriod1 = filtered.length > 0 ? filtered[0].date : null;
+  const { data: benchmarkRaw } = useSWR<HistoryResponse>(
+    showBenchmark && benchmarkPeriod1
+      ? `/api/history?symbol=${encodeURIComponent(benchmarkSymbol)}&period1=${benchmarkPeriod1}`
+      : null,
+    snapshotFetcher,
+    { revalidateOnFocus: false, revalidateOnReconnect: false, refreshInterval: 0 },
+  );
+
+  // For each snapshot date, look up the nearest prior trading day's benchmark close
+  const benchmarkVals = useMemo((): (number | null)[] | null => {
+    if (!showBenchmark || !benchmarkRaw?.points?.length) return null;
+    const sorted = [...benchmarkRaw.points].sort((a, b) => a.date.localeCompare(b.date));
+    return filtered.map(s => {
+      for (let i = sorted.length - 1; i >= 0; i--) {
+        if (sorted[i].date.slice(0, 10) <= s.date) return sorted[i].close;
+      }
+      return null;
+    });
+  }, [showBenchmark, benchmarkRaw, filtered]);
+
+  // Normalized % return from period start — portfolio (when benchmark is active)
+  const portfolioNormVals = useMemo((): (number | null)[] | null => {
+    if (!showBenchmark || filtered.length === 0) return null;
+    const base = filtered[0].totalValue;
+    if (!base) return null;
+    return filtered.map(s => ((s.totalValue - base) / base) * 100);
+  }, [showBenchmark, filtered]);
+
+  // Normalized % return from period start — benchmark
+  const benchmarkNormVals = useMemo((): (number | null)[] | null => {
+    if (!benchmarkVals) return null;
+    const base = benchmarkVals.find((v): v is number => v !== null);
+    if (!base) return null;
+    return benchmarkVals.map(v => v !== null ? ((v - base) / base) * 100 : null);
+  }, [benchmarkVals]);
+
   if (!data) {
     return (
       <div className="card p-6">
@@ -192,7 +239,10 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
 
   // ── Derive values per mode ──
   const returnVals = filtered.map(s => s.totalCost > 0 ? (s.totalGain / s.totalCost) * 100 : null);
-  const mainVals: (number | null)[] = mode === 'value'
+  // When benchmark is active, override to normalized % return from period start
+  const mainVals: (number | null)[] = showBenchmark && portfolioNormVals
+    ? portfolioNormVals
+    : mode === 'value'
     ? filtered.map(s => s.totalValue)
     : mode === 'gain'
     ? filtered.map(s => s.totalGain)
@@ -218,13 +268,19 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
   const showIndustryOverlays = mode !== 'return';
   const hasSelectedIndustry = enabled.size > 0;
 
+  // Auto-disable benchmark when an industry is selected (incompatible views)
+  useEffect(() => {
+    if (hasSelectedIndustry) setShowBenchmark(false);
+  }, [hasSelectedIndustry]);
+
   // When an industry is selected, scale the y-axis to that industry's data only
   const industryVals = showIndustryOverlays
     ? filtered.flatMap(s => [...enabled].map(ind => s.byIndustry[ind]?.totalGain ?? 0))
     : [];
+  const benchmarkDefinedVals = benchmarkNormVals?.filter((v): v is number => v !== null) ?? [];
   const allVals = hasSelectedIndustry && industryVals.length > 0
     ? industryVals
-    : [...definedMain, ...industryVals];
+    : [...definedMain, ...industryVals, ...benchmarkDefinedVals];
   const rawMin = Math.min(...allVals);
   const rawMax = Math.max(...allVals);
   const pad = (rawMax - rawMin) * 0.08 || Math.abs(rawMax) * 0.05 || 1;
@@ -245,6 +301,8 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
   }
 
   function fmtY(v: number) {
+    // Benchmark mode always shows normalized % return
+    if (showBenchmark) return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
     if (mode === 'return') return `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
     const abs = Math.abs(v);
     // Gain mode or industry-selected (which always shows G/L): use adaptive +/- prefix
@@ -266,13 +324,22 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
   }
 
   const lastMain = definedMain[definedMain.length - 1] ?? 0;
-  const lineColor = mode === 'value'
+  // In benchmark mode the portfolio always draws in accent blue; benchmark gets orange
+  const lineColor = showBenchmark
+    ? 'var(--color-accent)'
+    : mode === 'value'
     ? 'var(--color-accent)'
     : mode === 'return'
     ? '#AF52DE'
     : lastMain >= 0 ? 'var(--color-gain)' : 'var(--color-loss)';
 
+  const benchmarkLabel = BENCHMARK_OPTIONS.find(b => b.symbol === benchmarkSymbol)?.label ?? benchmarkSymbol;
+  const lastBenchmarkNorm = benchmarkNormVals?.filter((v): v is number => v !== null).at(-1) ?? null;
+  const alpha = showBenchmark && lastMain !== null && lastBenchmarkNorm !== null
+    ? lastMain - lastBenchmarkNorm : null;
+
   const mainPath = makePath(mainVals);
+  const benchmarkPath = benchmarkNormVals ? makePath(benchmarkNormVals) : '';
 
   // Industry-combined G/L series for period summary when industries are selected
   const industryGainSeries = hasSelectedIndustry && filtered.length > 0
@@ -361,7 +428,12 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
       return `${v < 0 ? '-' : '+'}$${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     }
     const abs = Math.abs(v);
-    return `${v < 0 ? '-' : ''}$${(abs / 1_000_000).toFixed(2)}M`;
+    const s = abs >= 1_000_000
+      ? `$${(abs / 1_000_000).toFixed(2)}M`
+      : abs >= 1_000
+      ? `$${(abs / 1_000).toFixed(1)}K`
+      : `$${abs.toFixed(0)}`;
+    return `${v < 0 ? '-' : ''}${s}`;
   }
 
   function fmtPeriodChange(delta: number, pct: number) {
@@ -376,23 +448,60 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
 
   return (
     <div className="card p-6">
-      {/* Controls row: mode toggles + time range pills in one line */}
+      {/* Controls row: mode toggles + benchmark toggle + time range pills */}
       <div className="flex items-center justify-between gap-2 mb-3">
-        <select
-          value={mode}
-          onChange={e => setMode(e.target.value as ChartMode)}
-          className="text-xs font-medium rounded-lg px-2.5 py-1 outline-none shrink-0"
-          style={{
-            backgroundColor: 'var(--color-surface-secondary)',
-            color: 'var(--color-primary)',
-            border: '1px solid var(--color-border)',
-            cursor: 'pointer',
-          }}
-        >
-          {CHART_MODES.map(({ id, label }) => (
-            <option key={id} value={id}>{label}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2 shrink-0">
+          <select
+            value={mode}
+            onChange={e => setMode(e.target.value as ChartMode)}
+            disabled={showBenchmark}
+            className="text-xs font-medium rounded-lg px-2.5 py-1 outline-none shrink-0"
+            style={{
+              backgroundColor: 'var(--color-surface-secondary)',
+              color: showBenchmark ? 'var(--color-secondary)' : 'var(--color-primary)',
+              border: '1px solid var(--color-border)',
+              cursor: showBenchmark ? 'default' : 'pointer',
+              opacity: showBenchmark ? 0.45 : 1,
+            }}
+          >
+            {CHART_MODES.map(({ id, label }) => (
+              <option key={id} value={id}>{label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => !hasSelectedIndustry && setShowBenchmark(b => !b)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all shrink-0"
+            style={{
+              backgroundColor: showBenchmark ? '#FF9500' : 'var(--color-surface-secondary)',
+              color: showBenchmark ? '#fff' : 'var(--color-secondary)',
+              border: '1px solid var(--color-border)',
+              opacity: hasSelectedIndustry ? 0.45 : 1,
+              cursor: hasSelectedIndustry ? 'default' : 'pointer',
+            }}
+          >
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3" />
+            </svg>
+            vs Benchmark
+          </button>
+          {showBenchmark && (
+            <select
+              value={benchmarkSymbol}
+              onChange={e => setBenchmarkSymbol(e.target.value as BenchmarkSymbol)}
+              className="text-xs font-medium rounded-lg px-2 py-1 outline-none"
+              style={{
+                backgroundColor: 'var(--color-surface-secondary)',
+                color: 'var(--color-primary)',
+                border: '1px solid var(--color-border)',
+                cursor: 'pointer',
+              }}
+            >
+              {BENCHMARK_OPTIONS.map(({ symbol, label }) => (
+                <option key={symbol} value={symbol}>{label}</option>
+              ))}
+            </select>
+          )}
+        </div>
         <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           {(['1w', '1m', '3m', '6m', 'ytd', ...years, 'max'] as string[]).map(r => (
             <button
@@ -412,22 +521,52 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
 
       {/* Period summary */}
       <div
-        className="flex items-baseline gap-3 mb-3"
         style={{
           filter: isPrivate ? 'blur(8px)' : 'none',
           transition: 'filter 0.2s',
           userSelect: isPrivate ? 'none' : undefined,
         }}
+        className="mb-3"
       >
-        <span className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-primary)' }}>
-          {industryGainSeries ? fmtMoney(periodChange) : fmtPeriodValue(lastMain)}
-        </span>
-        <span className="text-sm font-semibold tabular-nums" style={{ color: periodColor }}>
-          {industryGainSeries
-            ? `(${periodChangePct >= 0 ? '+' : ''}${periodChangePct.toFixed(2)}%)`
-            : fmtPeriodChange(periodChange, periodChangePct)}
-        </span>
-        <span className="text-xs text-secondary">{rangeLabel(timeRange)}</span>
+        {showBenchmark ? (
+          <div className="flex items-start gap-0">
+            {/* Portfolio metric */}
+            <div className="flex flex-col items-center gap-1" style={{ minWidth: 130, paddingRight: 32, borderRight: '1px solid var(--color-border)' }}>
+              <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--color-secondary)' }}>Portfolio</span>
+              <span className="text-2xl font-bold tabular-nums leading-none" style={{ color: lastMain >= 0 ? '#34C759' : '#FF3B30' }}>
+                {lastMain >= 0 ? '+' : ''}{lastMain.toFixed(2)}%
+              </span>
+            </div>
+            {lastBenchmarkNorm !== null && (
+              <div className="flex flex-col items-center gap-1" style={{ minWidth: 130, padding: '0 32px', borderRight: alpha !== null ? '1px solid var(--color-border)' : 'none' }}>
+                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--color-secondary)' }}>{benchmarkLabel}</span>
+                <span className="text-2xl font-bold tabular-nums leading-none" style={{ color: '#FF9500' }}>
+                  {lastBenchmarkNorm >= 0 ? '+' : ''}{lastBenchmarkNorm.toFixed(2)}%
+                </span>
+              </div>
+            )}
+            {alpha !== null && (
+              <div className="flex flex-col items-center gap-1" style={{ minWidth: 130, paddingLeft: 32, paddingRight: 32 }}>
+                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--color-secondary)' }}>Alpha</span>
+                <span className="text-2xl font-bold tabular-nums leading-none" style={{ color: alpha >= 0 ? '#34C759' : '#FF3B30' }}>
+                  {alpha >= 0 ? '+' : ''}{alpha.toFixed(2)} pp
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-baseline gap-3">
+            <span className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-primary)' }}>
+              {industryGainSeries ? fmtMoney(periodChange) : fmtPeriodValue(lastMain)}
+            </span>
+            <span className="text-sm font-semibold tabular-nums" style={{ color: periodColor }}>
+              {industryGainSeries
+                ? `(${periodChangePct >= 0 ? '+' : ''}${periodChangePct.toFixed(2)}%)`
+                : fmtPeriodChange(periodChange, periodChangePct)}
+            </span>
+            <span className="text-xs text-secondary">{rangeLabel(timeRange)}</span>
+          </div>
+        )}
       </div>
 
       {/* SVG line chart */}
@@ -456,8 +595,8 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
           </text>
         ))}
 
-        {/* Zero line (gain/return modes, or when industry selected, if crosses zero) */}
-        {(mode !== 'value' || hasSelectedIndustry) && yMin < 0 && yMax > 0 && (
+        {/* Zero line (gain/return/benchmark modes, or when industry selected, if crosses zero) */}
+        {(showBenchmark || mode !== 'value' || hasSelectedIndustry) && yMin < 0 && yMax > 0 && (
           <line x1={ml} y1={yOf(0)} x2={ml + cW} y2={yOf(0)}
             stroke="var(--color-secondary)" strokeWidth={1} opacity={0.3} />
         )}
@@ -489,6 +628,12 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
             strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
         )}
 
+        {/* Benchmark overlay line */}
+        {showBenchmark && benchmarkPath && !hasSelectedIndustry && (
+          <path d={benchmarkPath} fill="none" stroke="#FF9500"
+            strokeWidth={2} strokeDasharray="6 3" strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />
+        )}
+
         {/* Hover crosshair */}
         {hoverIdx !== null && (
           <line x1={xOf(hoverIdx)} y1={mt} x2={xOf(hoverIdx)} y2={mt + cH}
@@ -509,9 +654,23 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
         {/* Tooltip */}
         {hovSnap && hoverIdx !== null && hovMain !== null && (() => {
           const enabledArr = showIndustryOverlays ? [...enabled] : [];
+          const hovBenchmark = benchmarkNormVals ? benchmarkNormVals[hoverIdx] : null;
           const tooltipLines: { label: string; value: string; color: string }[] = [
-            // Hide the total-portfolio line when a specific industry is selected
-            ...(!hasSelectedIndustry ? [{
+            // In benchmark mode show normalized portfolio % and benchmark %
+            ...(showBenchmark && !hasSelectedIndustry ? [
+              {
+                label: 'Portfolio',
+                value: hovMain !== null ? `${hovMain >= 0 ? '+' : ''}${hovMain.toFixed(2)}%` : '—',
+                color: 'var(--color-accent)',
+              },
+              {
+                label: benchmarkLabel,
+                value: hovBenchmark !== null ? `${hovBenchmark >= 0 ? '+' : ''}${hovBenchmark.toFixed(2)}%` : '—',
+                color: '#FF9500',
+              },
+            ] : []),
+            // Normal mode: hide total-portfolio line when a specific industry is selected
+            ...(!showBenchmark && !hasSelectedIndustry ? [{
               label: mode === 'value' ? 'Total Value' : mode === 'gain' ? 'Total G/L' : 'Return',
               value: mode === 'value'
                 ? fmtFull(hovSnap.totalValue)

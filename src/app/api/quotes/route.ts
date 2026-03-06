@@ -19,38 +19,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Batch quote fetch for real-time prices + parallel summaryDetail for 52-week range
-    const [rawResults, fiftyTwoWeekResults] = await Promise.all([
-      yahooFinance.quote(symbols),
-      Promise.allSettled(
-        symbols.map((sym) =>
-          yahooFinance
-            .quoteSummary(sym, { modules: ['summaryDetail'] })
-            .then((s) => ({
-              symbol: sym,
-              low: s.summaryDetail?.fiftyTwoWeekLow ?? null,
-              high: s.summaryDetail?.fiftyTwoWeekHigh ?? null,
-            }))
-        )
-      ),
-    ]);
-
-    // Build a map of symbol → 52-week low/high
-    const fiftyTwoWeekMap = new Map<string, { low: number | null; high: number | null }>();
-    for (const result of fiftyTwoWeekResults) {
-      if (result.status === 'fulfilled') {
-        fiftyTwoWeekMap.set(result.value.symbol, {
-          low: result.value.low,
-          high: result.value.high,
-        });
-      }
-    }
+    const rawResults = await yahooFinance.quote(symbols);
 
     const quotes = rawResults
       .filter((q) => q != null)
       .map((q) => {
         const sym = q.symbol ?? '';
-        const range52 = fiftyTwoWeekMap.get(sym);
         return {
           symbol: sym,
           name: q.longName ?? q.shortName ?? sym,
@@ -59,8 +33,8 @@ export async function GET(req: NextRequest) {
           change: q.regularMarketChange ?? 0,
           changePercent: q.regularMarketChangePercent ?? 0,
           marketState: q.marketState ?? 'REGULAR',
-          fiftyTwoWeekLow: range52?.low ?? undefined,
-          fiftyTwoWeekHigh: range52?.high ?? undefined,
+          fiftyTwoWeekLow: q.fiftyTwoWeekLow ?? undefined,
+          fiftyTwoWeekHigh: q.fiftyTwoWeekHigh ?? undefined,
         };
       });
 

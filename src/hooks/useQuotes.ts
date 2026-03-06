@@ -17,9 +17,7 @@ interface UseQuotesReturn {
 }
 
 export function useQuotes(holdings: Holding[]): UseQuotesReturn {
-  const symbols = holdings
-    .map((h) => toYahooSymbol(h.symbol, h.type))
-    .join(',');
+  const symbols = [...new Set(holdings.map((h) => toYahooSymbol(h.symbol, h.type)))].join(',');
 
   const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
 
@@ -37,7 +35,6 @@ export function useQuotes(holdings: Holding[]): UseQuotesReturn {
   // Update lastUpdated whenever fresh data arrives
   useEffect(() => {
     if (data?.quotes) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLastUpdated(new Date());
     }
   }, [data]);

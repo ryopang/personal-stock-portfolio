@@ -20,7 +20,7 @@ interface Props {
 export default function AnalysisTab({ holdings, lang, onLangChange }: Props) {
   const [filterSymbol, setFilterSymbol] = useState<string>('all');
 
-  const symbols = holdings.map((h) => toYahooSymbol(h.symbol, h.type)).join(',');
+  const symbols = [...new Set(holdings.map((h) => toYahooSymbol(h.symbol, h.type)))].join(',');
 
   const { data } = useSWR<{ articles: NewsItem[] }>(
     symbols ? `/api/news?symbols=${symbols}` : null,

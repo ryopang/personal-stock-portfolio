@@ -93,7 +93,7 @@ export default function Dashboard({ initialHoldings }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { holdingsWithMetrics, totals, isLoading, isRefreshing, error, refresh, lastUpdated } =
+  const { holdingsWithMetrics, totals, isLoading, isRefreshing, error, refresh, lastUpdated, missingQuoteSymbols } =
     usePortfolio();
 
   const handleAdd = () => {
@@ -376,6 +376,11 @@ export default function Dashboard({ initialHoldings }: Props) {
         {error && (
           <div className="rounded-xl bg-loss/10 border border-loss/20 px-4 py-3 text-sm text-loss">
             Failed to fetch prices. Check your connection and try refreshing.
+          </div>
+        )}
+        {missingQuoteSymbols.length > 0 && (
+          <div className="rounded-xl border px-4 py-3 text-sm" style={{ backgroundColor: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.3)', color: '#92400e' }}>
+            Could not fetch prices for: <span className="font-semibold">{missingQuoteSymbols.join(', ')}</span>. These holdings are hidden from the table. Check that the symbol and asset type are correct.
           </div>
         )}
 

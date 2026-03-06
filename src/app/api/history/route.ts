@@ -36,6 +36,8 @@ export interface HistoryResponse {
 export async function GET(req: NextRequest) {
   const symbol = req.nextUrl.searchParams.get('symbol');
   const range = req.nextUrl.searchParams.get('range') ?? '1Y';
+  // Optional override: fetch from a specific start date (used for benchmark overlays)
+  const customPeriod1 = req.nextUrl.searchParams.get('period1') ?? null;
 
   if (!symbol) {
     return NextResponse.json({ error: 'symbol required' }, { status: 400 });
@@ -68,7 +70,14 @@ export async function GET(req: NextRequest) {
           return ptET === todayET;
         });
     } else {
-      const { period1, interval } = periodFromRange(range);
+      const { period1: derivedPeriod1, interval: derivedInterval } = periodFromRange(range);
+      const period1 = customPeriod1 ?? derivedPeriod1;
+      // When a custom start date is provided, choose interval based on the date span
+      let interval: '1d' | '1wk' = derivedInterval;
+      if (customPeriod1) {
+        const spanDays = (Date.now() - new Date(customPeriod1).getTime()) / 86400000;
+        interval = spanDays > 730 ? '1wk' : '1d';
+      }
       const rows = await yahooFinance.historical(symbol, { period1, period2: today, interval });
       points = rows
         .filter((r) => r.close != null)

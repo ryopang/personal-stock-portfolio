@@ -56,7 +56,7 @@ function buildPrompt(holdings: HoldingWithMetrics[], articles: NewsItem[], lang:
 
 You are analyzing my actual investment portfolio. Use the exact figures below — do not invent or estimate data that is provided.
 
-## MY PORTFOLIO (as of 2026-02-27)
+## MY PORTFOLIO (as of ${new Date().toISOString().slice(0, 10)})
 
 **Total Value:** $${totalValue.toFixed(2)}
 **Total Cost Basis:** $${totalCost.toFixed(2)}
