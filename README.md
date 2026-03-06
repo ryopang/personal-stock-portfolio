@@ -86,6 +86,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 ## Changelog
 
 ### March 2026
+- **Stock price chart daily change fix** — the "Today" chart now uses the previous trading day's official close as its baseline (sourced from `chartPreviousClose` in Yahoo Finance chart metadata), so the displayed gain/loss and line color always match the Daily Change column in the holdings table. Previously it compared against the first intraday bar, which could disagree when a stock opened above or below its prior close.
 - **Multi-lot holding groups** — holdings with the same ticker now collapse into a single aggregate row/card by default; click to expand and see individual lots underneath. The group row shows combined quantity, weighted-average cost basis, total value, daily change, total gain/loss, and 52W range. Sorting operates on the group aggregate so the table order is consistent.
 - **Mobile group cards** — collapsed groups on mobile render as full-featured cards matching the single-holding card layout (value, daily change, avg cost, total gain/loss, 52W range) with a lot-count badge and chevron toggle; expanded lots appear inline at the same indentation level
 - **Safari cross-browser fix** — eliminated `position: relative` on `<th>`/`<td>` elements (unsupported in Safari); mover icons (🔥/↓) and the 👀 filter button now use inline flex layout with a fixed-width icon slot instead of absolute positioning

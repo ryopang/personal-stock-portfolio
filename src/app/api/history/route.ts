@@ -27,6 +27,12 @@ export interface HistoryPoint {
   close: number;
 }
 
+export interface HistoryResponse {
+  symbol: string;
+  points: HistoryPoint[];
+  previousClose?: number; // only set for "Today" range — previous trading day's close
+}
+
 export async function GET(req: NextRequest) {
   const symbol = req.nextUrl.searchParams.get('symbol');
   const range = req.nextUrl.searchParams.get('range') ?? '1Y';
@@ -40,12 +46,16 @@ export async function GET(req: NextRequest) {
   try {
     let points: HistoryPoint[];
 
+    let previousClose: number | undefined;
+
     if (range === 'Today') {
       // Use chart() for intraday 5-minute bars — historical() only supports daily/weekly
       // Use ET date as period1 so we don't accidentally include the previous evening's
       // after-hours (midnight UTC = 7–8 PM ET, which is still the prior trading day)
       const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
       const result = await yahooFinance.chart(symbol, { period1: todayET, interval: '5m' });
+      // chartPreviousClose is the prior trading day's official close — use it as baseline
+      previousClose = result.meta.chartPreviousClose ?? result.meta.previousClose;
       points = (result.quotes ?? [])
         .filter((q) => q.close != null)
         .map((q) => {
@@ -68,7 +78,7 @@ export async function GET(req: NextRequest) {
         });
     }
 
-    return NextResponse.json({ symbol, points });
+    return NextResponse.json({ symbol, points, ...(previousClose != null && { previousClose }) });
   } catch (err) {
     console.error('[GET /api/history]', err);
     return NextResponse.json({ error: 'Failed to fetch history' }, { status: 500 });

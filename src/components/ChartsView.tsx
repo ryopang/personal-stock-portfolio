@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import { formatCurrencyK } from '@/lib/formatters';
 import type { HoldingWithMetrics, DailySnapshot } from '@/lib/types';
 import { toYahooSymbol } from '@/lib/crypto-symbols';
-import type { HistoryPoint } from '@/app/api/history/route';
+import type { HistoryPoint, HistoryResponse } from '@/app/api/history/route';
 
 const COLORS = [
   '#0071E3', '#34C759', '#FF9500', '#AF52DE', '#FF3B30',
@@ -600,7 +600,7 @@ function StockPriceChart({ holdings, isPrivate }: { holdings: HoldingWithMetrics
   const holding = uniqueHoldings.find(h => h.symbol === selectedSymbol) ?? uniqueHoldings[0];
   const yahooSym = holding ? toYahooSymbol(holding.symbol, holding.type) : '';
 
-  const { data, isLoading } = useSWR<{ points: HistoryPoint[] }>(
+  const { data, isLoading } = useSWR<HistoryResponse>(
     yahooSym ? `/api/history?symbol=${encodeURIComponent(yahooSym)}&range=${range}` : null,
     histFetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: false, refreshInterval: 0 },
@@ -627,7 +627,11 @@ function StockPriceChart({ holdings, isPrivate }: { holdings: HoldingWithMetrics
   const cW = W - ml - mr, cH = H - mt - mb;
   const n = displayPoints.length;
 
-  const firstClose = displayPoints[0]?.close ?? 0;
+  // For "Today", use previous trading day's close as baseline (matches Daily Change in table).
+  // For other ranges, use the first data point in the period.
+  const firstClose = (range === 'Today' && data?.previousClose != null)
+    ? data.previousClose
+    : (displayPoints[0]?.close ?? 0);
   const lastClose = displayPoints[n - 1]?.close ?? 0;
   const isUp = lastClose >= firstClose;
   const lineColor = isUp ? 'var(--color-gain)' : 'var(--color-loss)';
