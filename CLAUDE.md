@@ -52,6 +52,8 @@ A personal Next.js investment portfolio tracker. Stocks, ETFs, and crypto in one
 | `src/hooks/usePortfolio.ts` | Composites holdings + quotes → `HoldingWithMetrics[]` |
 | `src/store/portfolioStore.ts` | Zustand store (in-memory only — Redis is source of truth) |
 | `src/components/Dashboard.tsx` | Top-level client shell |
+| `src/components/HoldingsSection.tsx` | Holdings table + mobile cards; grouping, sorting, filtering |
+| `src/components/HoldingRow.tsx` | `HoldingTableRow`, `GroupSummaryTableRow`, `GroupCard`, `HoldingCard` |
 | `src/components/ChartsView.tsx` | All three SVG charts (donut, trend, stock price) |
 | `src/app/globals.css` | Tailwind v4 design tokens and component classes |
 
@@ -106,5 +108,7 @@ Component classes available: `.card`, `.btn-primary`, `.btn-secondary`, `.input`
 - **Privacy mode** — monetary values site-wide blur when `<html class="privacy-mode">` is set. The summary card has a separate per-field toggle. Don't conflate the two.
 - **`NEXT_PUBLIC_*` vars** are embedded in the client bundle — never put real secrets in them.
 - **Multi-lot holdings** — the same symbol can appear multiple times (different lots). Deduplication by symbol is needed for counts (type tabs, mover badges, industry chips). See existing `new Set<string>()` pattern in `HoldingsSection.tsx` and `PortfolioSummary.tsx`.
+- **Multi-lot grouping in the table** — `HoldingsSection` groups by symbol via `computeAggregate()`, sorts at the group level using the aggregate, and renders `GroupSummaryTableRow` (desktop) / `GroupCard` (mobile) for multi-lot symbols. Single-lot symbols render directly as `HoldingTableRow` / `HoldingCard`. The `expandedGroups: Set<string>` state tracks which groups are open.
+- **Safari: no `position: relative` on table cells** — Safari does not properly support `position: relative` / absolute children on `<th>` or `<td>`. Use an inner wrapper `<div className="relative">` as the positioning context instead, or restructure to inline flex layout. The Investment column uses a fixed-width icon slot (`w-5`) in a flex row to avoid absolute positioning entirely.
 - **Stock price chart** excludes crypto from the symbol dropdown (it has its own data shape from Yahoo).
 - **`.env.local` is gitignored** — never commit real credentials. Reference `.env.example` for the full list of required variables.

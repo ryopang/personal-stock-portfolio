@@ -25,7 +25,8 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 - **Alert filter** (👀 button in the Investment column header) — filters the table to only holdings with a daily move greater than 5%
 - **Table totals footer** — live aggregate of Total Cost, Current Value, Daily Change, and Total G/L across the currently filtered view
 - **52-week range bar** — visual indicator of where the current price sits within the 52-week high/low for each holding
-- **Mobile card layout** — holdings render as stacked cards on small screens with the same key metrics and edit/delete actions
+- **Multi-lot grouping** — holdings sharing the same ticker collapse into a single aggregate row with combined totals; click to expand individual lots in place
+- **Mobile card layout** — holdings render as stacked cards on small screens; grouped tickers show a full-detail summary card with lot count badge and expand to show each lot's card inline
 
 ### Charts
 
@@ -85,6 +86,9 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 ## Changelog
 
 ### March 2026
+- **Multi-lot holding groups** — holdings with the same ticker now collapse into a single aggregate row/card by default; click to expand and see individual lots underneath. The group row shows combined quantity, weighted-average cost basis, total value, daily change, total gain/loss, and 52W range. Sorting operates on the group aggregate so the table order is consistent.
+- **Mobile group cards** — collapsed groups on mobile render as full-featured cards matching the single-holding card layout (value, daily change, avg cost, total gain/loss, 52W range) with a lot-count badge and chevron toggle; expanded lots appear inline at the same indentation level
+- **Safari cross-browser fix** — eliminated `position: relative` on `<th>`/`<td>` elements (unsupported in Safari); mover icons (🔥/↓) and the 👀 filter button now use inline flex layout with a fixed-width icon slot instead of absolute positioning
 - **Portfolio value toggle** — eye button on the summary card masks sensitive figures: total portfolio value, total invested, and total P&L show `••••••`; today's daily change keeps the dollar amount visible but hides the percentage; hidden by default on page load
 - **UI polish — mobile & holdings table**
   - Price column moved between Investment and Quantity in the holdings table

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { HoldingTableRow, HoldingCard } from './HoldingRow';
+import { HoldingTableRow, HoldingCard, GroupCard, GroupSummaryTableRow } from './HoldingRow';
 import { TableSkeleton } from './LoadingSkeleton';
 import PriceChange from './PriceChange';
 import { formatCurrencyK } from '@/lib/formatters';
@@ -20,7 +20,7 @@ const TABS: { value: Tab; label: string }[] = [
 ];
 
 const TABLE_HEADERS: { label: string; key: SortKey; className: string }[] = [
-  { label: 'Investment', key: 'symbol', className: 'px-1.5 text-center w-20' },
+  { label: 'Investment', key: 'symbol', className: 'pl-3 pr-2 text-left' },
   { label: 'Price', key: 'currentPrice', className: 'px-1.5 text-center' },
   { label: 'Quantity', key: 'quantity', className: 'px-1.5 text-center' },
   { label: 'Avg Cost', key: 'costBasis', className: 'px-1.5 text-center' },
@@ -28,7 +28,7 @@ const TABLE_HEADERS: { label: string; key: SortKey; className: string }[] = [
   { label: 'Current Value', key: 'currentValue', className: 'px-1.5 text-center whitespace-nowrap' },
   { label: 'Daily Change', key: 'dailyChangePercent', className: 'px-1.5 text-center whitespace-nowrap' },
   { label: 'Total Gain / Loss', key: 'totalGainPercent', className: 'pl-1.5 pr-3 text-center whitespace-nowrap' },
-  { label: '52W Range', key: 'fiftyTwoWeekPosition', className: 'px-3 pr-6 text-center whitespace-nowrap' },
+  { label: '52W Range', key: 'fiftyTwoWeekPosition', className: 'px-2 pr-3 text-center whitespace-nowrap' },
 ];
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
@@ -58,13 +58,43 @@ interface Props {
   moverFilter?: 'gainers' | 'losers' | null;
 }
 
+function computeAggregate(lots: HoldingWithMetrics[]): HoldingWithMetrics {
+  const first = lots[0];
+  const totalCost = lots.reduce((s, h) => s + h.totalCost, 0);
+  const totalQuantity = lots.reduce((s, h) => s + h.quantity, 0);
+  const currentValue = lots.reduce((s, h) => s + h.currentValue, 0);
+  const totalGain = lots.reduce((s, h) => s + h.totalGain, 0);
+  const dailyChange = lots.reduce((s, h) => s + h.dailyChange, 0);
+  return {
+    ...first,
+    id: `group-${first.symbol}`,
+    quantity: totalQuantity,
+    costBasis: totalCost / totalQuantity,
+    totalCost,
+    currentValue,
+    totalGain,
+    totalGainPercent: totalCost > 0 ? (totalGain / totalCost) * 100 : 0,
+    dailyChange,
+  };
+}
+
 export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete, moverFilter }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('all');
   const [activeIndustry, setActiveIndustry] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('symbol');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [alertFilter, setAlertFilter] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const filterBarRef = useRef<HTMLDivElement>(null);
+
+  function toggleGroup(symbol: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(symbol)) next.delete(symbol);
+      else next.add(symbol);
+      return next;
+    });
+  }
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -95,33 +125,49 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
     ? industryFiltered.filter((h) => Math.abs(h.dailyChangePercent) > 5)
     : industryFiltered;
 
-  const sortedFiltered = [...displayHoldings].sort((a, b) => {
+  // Group by symbol, then sort groups by aggregate value
+  const sortedGroups = useMemo(() => {
+    const map = new Map<string, HoldingWithMetrics[]>();
+    for (const h of displayHoldings) {
+      if (!map.has(h.symbol)) map.set(h.symbol, []);
+      map.get(h.symbol)!.push(h);
+    }
+    const groups = Array.from(map.values()).map((lots) => ({
+      lots,
+      aggregate: computeAggregate(lots),
+    }));
     const mult = sortDir === 'asc' ? 1 : -1;
-    if (sortKey === 'industry') {
-      const ai = a.industry ?? '';
-      const bi = b.industry ?? '';
-      if (!ai && !bi) return 0;
-      if (!ai) return 1;   // blanks always last
-      if (!bi) return -1;
-      return mult * ai.localeCompare(bi);
-    }
-    if (sortKey === 'symbol') {
-      return mult * a.symbol.localeCompare(b.symbol);
-    }
-    if (sortKey === 'fiftyTwoWeekPosition') {
-      const pos = (h: typeof a) => {
-        if (h.fiftyTwoWeekLow == null || h.fiftyTwoWeekHigh == null) return null;
-        const range = h.fiftyTwoWeekHigh - h.fiftyTwoWeekLow;
-        return range > 0 ? (h.currentPrice - h.fiftyTwoWeekLow) / range : 0.5;
-      };
-      const aPos = pos(a), bPos = pos(b);
-      if (aPos === null && bPos === null) return 0;
-      if (aPos === null) return 1;
-      if (bPos === null) return -1;
-      return mult * (aPos - bPos);
-    }
-    return mult * ((a[sortKey] as number) - (b[sortKey] as number));
-  });
+    groups.sort((ga, gb) => {
+      const a = ga.aggregate;
+      const b = gb.aggregate;
+      if (sortKey === 'industry') {
+        const ai = a.industry ?? '';
+        const bi = b.industry ?? '';
+        if (!ai && !bi) return 0;
+        if (!ai) return 1;
+        if (!bi) return -1;
+        return mult * ai.localeCompare(bi);
+      }
+      if (sortKey === 'symbol') return mult * a.symbol.localeCompare(b.symbol);
+      if (sortKey === 'fiftyTwoWeekPosition') {
+        const pos = (h: HoldingWithMetrics) => {
+          if (h.fiftyTwoWeekLow == null || h.fiftyTwoWeekHigh == null) return null;
+          const range = h.fiftyTwoWeekHigh - h.fiftyTwoWeekLow;
+          return range > 0 ? (h.currentPrice - h.fiftyTwoWeekLow) / range : 0.5;
+        };
+        const aPos = pos(a), bPos = pos(b);
+        if (aPos === null && bPos === null) return 0;
+        if (aPos === null) return 1;
+        if (bPos === null) return -1;
+        return mult * (aPos - bPos);
+      }
+      return mult * ((a[sortKey] as number) - (b[sortKey] as number));
+    });
+    return groups;
+  }, [displayHoldings, sortKey, sortDir]);
+
+  // Flat list for totals footer
+  const sortedFiltered = useMemo(() => sortedGroups.flatMap((g) => g.lots), [sortedGroups]);
 
   const filteredTotals = useMemo(() => {
     const totalValue = sortedFiltered.reduce((s, h) => s + h.currentValue, 0);
@@ -257,34 +303,27 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
         </div>
       )}
 
-      {displayHoldings.length === 0 ? (
-        <div className="card py-12 text-center text-secondary text-sm">
-          {activeIndustry
-            ? `No ${activeIndustry === '—' ? 'uncategorized' : activeIndustry} holdings.`
-            : `No ${activeTab === 'all' ? '' : activeTab} holdings yet.`}
-        </div>
-      ) : (
-        <>
+      <>
           {/* Desktop table */}
-          <div className="hidden md:block card" style={{ overflow: 'clip' }}>
+          <div className="hidden md:block card" style={{ overflow: 'hidden' }}>
             <div
               className="overflow-auto"
               style={{ maxHeight: 'calc(100dvh - var(--sticky-top, 0px) - var(--filter-bar-height, 0px) - 2rem)' }}
             >
-            <table style={{ minWidth: 'max-content', width: '100%' }}>
+            <table style={{ width: '100%', maxWidth: '100%' }}>
               <thead className="sticky z-20" style={{ top: 0 }}>
                 <tr className="border-b border-border" style={{ backgroundColor: 'var(--color-surface)' }}>
                   {TABLE_HEADERS.map((h) => (
                     <th
                       key={h.label}
-                      className={`py-2.5 text-xs font-semibold text-secondary uppercase tracking-wide ${h.className} ${h.key === 'symbol' ? 'relative' : ''}`}
+                      className={`py-2.5 text-xs font-semibold text-secondary uppercase tracking-wide ${h.className}`}
                     >
                       {h.key === 'symbol' ? (
-                        <>
+                        <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => setAlertFilter((f) => !f)}
                             title="Show only movers >5%"
-                            className={`absolute left-1 top-1/2 -translate-y-1/2 inline-flex items-center px-1 py-0.5 rounded text-[10px] leading-none transition-colors ${
+                            className={`inline-flex items-center justify-center w-5 h-5 rounded text-[10px] leading-none transition-colors shrink-0 ${
                               alertFilter
                                 ? 'bg-primary text-surface'
                                 : 'text-secondary hover:text-primary hover:bg-surface-secondary'
@@ -299,7 +338,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                             {h.label}
                             <SortIcon active={sortKey === h.key} dir={sortDir} />
                           </button>
-                        </>
+                        </div>
                       ) : (
                         <button
                           onClick={() => toggleSort(h.key)}
@@ -314,20 +353,52 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                 </tr>
               </thead>
               <tbody>
-                {sortedFiltered.map((holding) => (
-                  <HoldingTableRow
-                    key={holding.id}
-                    holding={holding}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                  />
-                ))}
+                {displayHoldings.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="py-12 text-center text-secondary text-sm">
+                      {activeIndustry
+                        ? `No ${activeIndustry === '—' ? 'uncategorized' : activeIndustry} holdings.`
+                        : `No ${activeTab === 'all' ? '' : activeTab} holdings yet.`}
+                    </td>
+                  </tr>
+                ) : sortedGroups.map(({ lots, aggregate }) =>
+                  lots.length === 1 ? (
+                    <HoldingTableRow
+                      key={lots[0].id}
+                      holding={lots[0]}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                    />
+                  ) : (
+                    <>
+                      <GroupSummaryTableRow
+                        key={`group-${aggregate.symbol}`}
+                        lotCount={lots.length}
+                        aggregate={aggregate}
+                        expanded={expandedGroups.has(aggregate.symbol)}
+                        onToggle={() => toggleGroup(aggregate.symbol)}
+                      />
+                      {expandedGroups.has(aggregate.symbol) && lots.map((lot) => (
+                        <HoldingTableRow
+                          key={lot.id}
+                          holding={lot}
+                          onEdit={onEdit}
+                          onDelete={onDelete}
+                          isChild
+                        />
+                      ))}
+                    </>
+                  )
+                )}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-border" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
                   {/* Investment */}
-                  <td className="py-2 pl-16 pr-2">
-                    <span className="text-xs font-semibold text-secondary uppercase tracking-wide">Total</span>
+                  <td className="py-2 pl-3 pr-2">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 shrink-0" />
+                      <span className="text-xs font-semibold text-secondary uppercase tracking-wide">Total</span>
+                    </div>
                   </td>
                   {/* Price */}
                   <td className="py-2px-2" />
@@ -367,17 +438,41 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
 
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
-            {sortedFiltered.map((holding) => (
-              <HoldingCard
-                key={holding.id}
-                holding={holding}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
-            ))}
+            {displayHoldings.length === 0 ? (
+              <div className="card py-12 text-center text-secondary text-sm">
+                {activeIndustry
+                  ? `No ${activeIndustry === '—' ? 'uncategorized' : activeIndustry} holdings.`
+                  : `No ${activeTab === 'all' ? '' : activeTab} holdings yet.`}
+              </div>
+            ) : sortedGroups.map(({ lots, aggregate }) =>
+              lots.length === 1 ? (
+                <HoldingCard
+                  key={lots[0].id}
+                  holding={lots[0]}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
+              ) : (
+                <div key={`group-${aggregate.symbol}`} className="space-y-1.5">
+                  <GroupCard
+                    lotCount={lots.length}
+                    aggregate={aggregate}
+                    expanded={expandedGroups.has(aggregate.symbol)}
+                    onToggle={() => toggleGroup(aggregate.symbol)}
+                  />
+                  {expandedGroups.has(aggregate.symbol) && lots.map((lot) => (
+                    <HoldingCard
+                      key={lot.id}
+                      holding={lot}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                    />
+                  ))}
+                </div>
+              )
+            )}
           </div>
-        </>
-      )}
+      </>
     </div>
   );
 }
