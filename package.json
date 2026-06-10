@@ -9,8 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.78.0",
+    "@ai-sdk/anthropic": "^3.0.82",
+    "@ai-sdk/google": "^3.0.80",
+    "@ai-sdk/groq": "^3.0.39",
+    "@ai-sdk/react": "^3.0.202",
+    "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.2",
+    "ai": "^6.0.200",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -20,7 +25,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22.19.21",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

@@ -85,7 +85,9 @@ A personal Next.js investment portfolio tracker. Stocks, ETFs, and crypto in one
 
 **Manual refresh only** — `refreshInterval: 0` on all SWR calls. No auto-polling.
 
-**AI providers** — both Gemini 2.5 Flash and Groq Llama 3.3 70B are supported. The provider is selectable in the UI per session. AI analysis is persisted to Redis; chatbot is ephemeral.
+**AI providers** — four providers (Gemini 2.5 Flash, Groq Llama 3.3, Claude Sonnet 4.6, Claude Opus 4.8) unified behind the Vercel AI SDK (`streamText`). The registry lives in `src/lib/ai-providers.ts`; prompt text/builders in `src/lib/prompts.ts`. The provider is selectable in the UI per session. AI analysis is persisted to Redis; the chatbot is ephemeral and uses `useChat` from `@ai-sdk/react` (server responds via `toUIMessageStreamResponse`). Both AI routes are rate-limited per IP via `@upstash/ratelimit` (`src/lib/ratelimit.ts`).
+
+**Macro context is user-maintained data, not code** — the market commentary injected into AI prompts lives in Redis (`portfolio:macro-context`, editable via Admin → Edit macro context). Never hardcode market conditions into prompt text; they go stale.
 
 ---
 
@@ -97,6 +99,7 @@ A personal Next.js investment portfolio tracker. Stocks, ETFs, and crypto in one
 | `UPSTASH_REDIS_REST_TOKEN` | Yes | Redis auth |
 | `GEMINI_API_KEY` | One of these | AI analysis + chatbot |
 | `GROQ_API_KEY` | One of these | AI analysis + chatbot |
+| `ANTHROPIC_API_KEY` | One of these | AI analysis + chatbot (Claude Sonnet/Opus) |
 | `NEXT_PUBLIC_DASHBOARD_PASSWORD` | No | Client-side password gate (baked into bundle) |
 
 ---
