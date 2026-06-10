@@ -1,15 +1,11 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useChat } from '@ai-sdk/react';
+import type { UIMessage } from 'ai';
 import type { HoldingWithMetrics, PortfolioTotals } from '@/lib/types';
 
-type Role = 'user' | 'assistant';
 type Provider = 'gemini' | 'groq' | 'claude-sonnet' | 'claude-opus';
-
-interface Message {
-  role: Role;
-  content: string;
-}
 
 interface Props {
   holdings: HoldingWithMetrics[];
@@ -68,6 +64,13 @@ function inlineBold(text: string): React.ReactNode {
   });
 }
 
+function messageText(msg: UIMessage): string {
+  return msg.parts
+    .filter((p) => p.type === 'text')
+    .map((p) => p.text)
+    .join('');
+}
+
 function renderMarkdown(text: string): React.ReactNode[] {
   const lines = text.split('\n');
   const elements: React.ReactNode[] = [];
@@ -115,13 +118,15 @@ function renderMarkdown(text: string): React.ReactNode[] {
 
 export default function InvestmentChatbot({ holdings, totals, lang }: Props) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [streaming, setStreaming] = useState(false);
   const [provider, setProvider] = useState<Provider>('gemini');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
+
+  // Streaming transport, message state, and abort are all managed by useChat
+  // (defaults to POST /api/chat, which responds via toUIMessageStreamResponse).
+  const { messages, sendMessage, status, stop, setMessages, error } = useChat();
+  const streaming = status === 'submitted' || status === 'streaming';
 
   // Auto-scroll on new content
   useEffect(() => {
@@ -137,71 +142,13 @@ export default function InvestmentChatbot({ holdings, totals, lang }: Props) {
     }
   }, [open]);
 
-  const send = useCallback(async (userText: string) => {
+  const send = (userText: string) => {
     const text = userText.trim();
     if (!text || streaming) return;
-
-    const userMsg: Message = { role: 'user', content: text };
-    const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
     setInput('');
-    setStreaming(true);
-
-    // Placeholder for the assistant reply we'll stream into
-    setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-
-    abortRef.current = new AbortController();
-
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nextMessages, provider, holdings, totals, lang }),
-        signal: abortRef.current.signal,
-      });
-
-      if (!res.ok) {
-        const { error } = await res.json().catch(() => ({ error: 'Request failed.' }));
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: `Error: ${error ?? 'Something went wrong.'}` };
-          return updated;
-        });
-        setStreaming(false);
-        return;
-      }
-
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = {
-            role: 'assistant',
-            content: updated[updated.length - 1].content + chunk,
-          };
-          return updated;
-        });
-      }
-    } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = {
-            role: 'assistant',
-            content: 'Failed to reach the chat API. Check your API key configuration.',
-          };
-          return updated;
-        });
-      }
-    } finally {
-      setStreaming(false);
-    }
-  }, [messages, streaming, provider, holdings, totals, lang]);
+    // Portfolio context and provider choice ride along as extra body fields
+    sendMessage({ text }, { body: { provider, holdings, totals, lang } });
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -212,14 +159,12 @@ export default function InvestmentChatbot({ holdings, totals, lang }: Props) {
   };
 
   const handleStop = () => {
-    abortRef.current?.abort();
-    setStreaming(false);
+    stop();
   };
 
   const handleClear = () => {
-    abortRef.current?.abort();
+    stop();
     setMessages([]);
-    setStreaming(false);
     setInput('');
   };
 
@@ -357,35 +302,57 @@ export default function InvestmentChatbot({ holdings, totals, lang }: Props) {
                 </div>
               </div>
             ) : (
-              messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  {msg.role === 'user' ? (
-                    <div
-                      className="max-w-[80%] rounded-2xl rounded-tr-sm px-3.5 py-2.5 text-sm"
-                      style={{ backgroundColor: '#0071E3', color: '#fff' }}
-                    >
-                      {msg.content}
-                    </div>
-                  ) : (
-                    <div className="max-w-[92%] space-y-0.5">
-                      {msg.content ? (
-                        <>
-                          {renderMarkdown(msg.content)}
-                          {streaming && i === messages.length - 1 && (
-                            <span className="inline-block w-0.5 h-4 bg-accent animate-pulse ml-0.5 align-middle" />
-                          )}
-                        </>
+              <>
+                {messages.map((msg, i) => {
+                  const content = messageText(msg);
+                  return (
+                    <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      {msg.role === 'user' ? (
+                        <div
+                          className="max-w-[80%] rounded-2xl rounded-tr-sm px-3.5 py-2.5 text-sm"
+                          style={{ backgroundColor: '#0071E3', color: '#fff' }}
+                        >
+                          {content}
+                        </div>
                       ) : (
-                        <div className="flex gap-1 items-center py-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce" style={{ animationDelay: '300ms' }} />
+                        <div className="max-w-[92%] space-y-0.5">
+                          {content ? (
+                            <>
+                              {renderMarkdown(content)}
+                              {streaming && i === messages.length - 1 && (
+                                <span className="inline-block w-0.5 h-4 bg-accent animate-pulse ml-0.5 align-middle" />
+                              )}
+                            </>
+                          ) : (
+                            <div className="flex gap-1 items-center py-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce" style={{ animationDelay: '0ms' }} />
+                              <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce" style={{ animationDelay: '150ms' }} />
+                              <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce" style={{ animationDelay: '300ms' }} />
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              ))
+                  );
+                })}
+                {/* Waiting for the first token — no assistant message exists yet */}
+                {status === 'submitted' && (
+                  <div className="flex justify-start">
+                    <div className="flex gap-1 items-center py-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </div>
+                )}
+                {error && (
+                  <div className="flex justify-start">
+                    <p className="text-sm" style={{ color: 'var(--color-loss)' }}>
+                      Error: {error.message || 'Failed to reach the chat API. Check your API key configuration.'}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
