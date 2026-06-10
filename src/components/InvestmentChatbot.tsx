@@ -3,13 +3,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
-import type { HoldingWithMetrics, PortfolioTotals } from '@/lib/types';
+import type { HoldingWithMetrics } from '@/lib/types';
 
 type Provider = 'gemini' | 'groq' | 'claude-sonnet' | 'claude-opus';
 
 interface Props {
   holdings: HoldingWithMetrics[];
-  totals: PortfolioTotals;
   lang: 'en' | 'zh-TW';
 }
 
@@ -116,7 +115,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
   return elements;
 }
 
-export default function InvestmentChatbot({ holdings, totals, lang }: Props) {
+export default function InvestmentChatbot({ holdings, lang }: Props) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [provider, setProvider] = useState<Provider>('gemini');
@@ -146,8 +145,9 @@ export default function InvestmentChatbot({ holdings, totals, lang }: Props) {
     const text = userText.trim();
     if (!text || streaming) return;
     setInput('');
-    // Portfolio context and provider choice ride along as extra body fields
-    sendMessage({ text }, { body: { provider, holdings, totals, lang } });
+    // Provider and language ride along as extra body fields; the server
+    // assembles portfolio context itself from Redis + Yahoo.
+    sendMessage({ text }, { body: { provider, lang } });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { streamText } from 'ai';
-import type { NewsItem } from '@/app/api/news/route';
-import type { HoldingWithMetrics } from '@/lib/types';
 import redis from '@/lib/redis';
 import { resolveProvider, type ProviderKey } from '@/lib/ai-providers';
 import { aiRatelimit, clientIp } from '@/lib/ratelimit';
 import { getMacroContext, formatMacroSection } from '@/lib/macro-context';
+import { getPortfolioWithMetrics, getBenchmarkReturns } from '@/lib/portfolio-server';
+import { fetchNewsForSymbols } from '@/lib/news';
+import { toYahooSymbol } from '@/lib/crypto-symbols';
 import {
   ANALYSIS_SYSTEM_PROMPT_EN,
   ANALYSIS_SYSTEM_PROMPT_ZH,
   buildAnalysisPrompt,
-  type BenchmarkData,
+  extractWatchlist,
 } from '@/lib/prompts';
 
 export const dynamic = 'force-dynamic';
@@ -31,21 +32,13 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  let holdings: HoldingWithMetrics[];
-  let articles: NewsItem[];
   let lang: string = 'en';
   let providerKey: ProviderKey = 'gemini';
-  let benchmark: BenchmarkData | null = null;
-  let previousWatchlist: string | null = null;
 
   try {
-    ({ holdings, articles, lang, provider: providerKey, benchmark, previousWatchlist } = await req.json());
+    ({ lang, provider: providerKey } = await req.json());
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
-  }
-
-  if (!holdings?.length) {
-    return NextResponse.json({ error: 'No holdings provided.' }, { status: 400 });
   }
 
   const { success } = await aiRatelimit.limit(clientIp(req));
@@ -61,13 +54,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: provider.error }, { status: 500 });
   }
 
-  const macro = await getMacroContext().catch(() => null);
+  // All portfolio/market data is assembled server-side from Redis and Yahoo —
+  // the client only chooses language and provider.
+  let holdings;
+  try {
+    ({ holdings } = await getPortfolioWithMetrics());
+  } catch (err) {
+    console.error('[POST /api/analysis] portfolio fetch failed', err);
+    return NextResponse.json({ error: 'Failed to load portfolio data.' }, { status: 502 });
+  }
+  if (!holdings.length) {
+    return NextResponse.json({ error: 'No holdings in the portfolio.' }, { status: 400 });
+  }
+
+  const symbols = [...new Set(holdings.map((h) => toYahooSymbol(h.symbol, h.type)))];
+  const [articles, benchmark, macro, cached] = await Promise.all([
+    fetchNewsForSymbols(symbols).catch(() => []),
+    getBenchmarkReturns('VTI'),
+    getMacroContext().catch(() => null),
+    redis.get<CachedAnalysis>(CACHE_KEY).catch(() => null),
+  ]);
+
   const prompt = buildAnalysisPrompt({
     holdings,
-    articles: articles ?? [],
+    articles,
     lang,
     benchmark,
-    previousWatchlist,
+    previousWatchlist: cached?.text ? extractWatchlist(cached.text) : null,
     macroSection: formatMacroSection(macro),
   });
 

@@ -1,5 +1,4 @@
-import type { NewsItem } from '@/app/api/news/route';
-import type { HoldingWithMetrics, PortfolioTotals } from '@/lib/types';
+import type { HoldingWithMetrics, NewsItem, PortfolioTotals } from '@/lib/types';
 
 // All AI prompt text and builders live here, shared by /api/analysis and /api/chat.
 
@@ -93,6 +92,21 @@ export const ANALYSIS_SYSTEM_PROMPT_ZH = `你是一位為單一客戶服務的�
 
 export const CHAT_SYSTEM_PROMPT =
   "You are a top-tier financial advisor and investment analyst — a blend of Warren Buffett's long-term value discipline, Howard Marks' risk-awareness, and CFA-level analytical rigor. Your mandate is to help investors build and protect lasting wealth over a 3–10+ year horizon. You answer investment questions with the clarity, honesty, and candor of a fiduciary. Be direct and specific — cite real examples, data, historical context, and precise reasoning when relevant. Never give vague, hedge-everything answers. If you don't know something, say so. Do not recommend short-term trades or market timing. Format responses with **bold** for key terms, - for bullets when listing multiple points, and ## for section headings on longer responses. Keep answers concise unless depth is warranted. When the investor's portfolio data is provided below, refer to their actual holdings, allocations, and performance figures when relevant to the question.";
+
+/**
+ * Pull the "12-Month Watchlist" section out of a previous analysis so the next
+ * run can check each trigger. Returns null if the section isn't present.
+ */
+export function extractWatchlist(analysisText: string): string | null {
+  const marker = '12-Month Watchlist';
+  const idx = analysisText.indexOf(marker);
+  if (idx === -1) return null;
+  // Skip the header line, grab everything that follows (watchlist is the last section)
+  const afterHeader = analysisText.slice(idx + marker.length);
+  const firstNewline = afterHeader.indexOf('\n');
+  const body = afterHeader.slice(firstNewline + 1).trim();
+  return body.slice(0, 1000) || null;
+}
 
 function fmtPct(n: number | null): string {
   if (n == null) return 'N/A';

@@ -473,7 +473,7 @@ export default function Dashboard({ initialHoldings }: Props) {
       )}
 
       {/* Investment advisor chatbot */}
-      <InvestmentChatbot holdings={holdingsWithMetrics} totals={totals} lang={lang} />
+      <InvestmentChatbot holdings={holdingsWithMetrics} lang={lang} />
 
       {/* Clear all confirmation modal */}
       {clearModalOpen && (
