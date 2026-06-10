@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { convertToModelMessages, streamText, type UIMessage } from 'ai';
-import type { HoldingWithMetrics, PortfolioTotals } from '@/lib/types';
 import { resolveProvider, type ProviderKey } from '@/lib/ai-providers';
 import { aiRatelimit, clientIp } from '@/lib/ratelimit';
 import { getMacroContext, formatMacroSection } from '@/lib/macro-context';
+import { getPortfolioWithMetrics } from '@/lib/portfolio-server';
 import { CHAT_SYSTEM_PROMPT, buildPortfolioContext } from '@/lib/prompts';
 
 export const dynamic = 'force-dynamic';
@@ -12,12 +12,10 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   let messages: UIMessage[];
   let providerKey: ProviderKey = 'gemini';
-  let holdings: HoldingWithMetrics[] = [];
-  let totals: PortfolioTotals | null = null;
   let lang: 'en' | 'zh-TW' = 'en';
 
   try {
-    ({ messages, provider: providerKey, holdings, totals, lang } = await req.json());
+    ({ messages, provider: providerKey, lang } = await req.json());
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
@@ -39,10 +37,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: provider.error }, { status: 500 });
   }
 
-  const macro = await getMacroContext().catch(() => null);
+  // Portfolio context is assembled server-side; if Redis/Yahoo are unreachable
+  // the chat still works, just without portfolio awareness.
+  const [macro, portfolio] = await Promise.all([
+    getMacroContext().catch(() => null),
+    getPortfolioWithMetrics().catch(() => null),
+  ]);
 
-  const portfolioContext = holdings?.length && totals
-    ? buildPortfolioContext(holdings, totals)
+  const portfolioContext = portfolio?.holdings.length
+    ? buildPortfolioContext(portfolio.holdings, portfolio.totals)
     : '';
 
   const langInstruction = lang === 'zh-TW'

@@ -1,15 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import useSWR from 'swr';
 import type { HoldingWithMetrics } from '@/lib/types';
-import { toYahooSymbol } from '@/lib/crypto-symbols';
-import type { NewsItem } from '@/app/api/news/route';
 import PortfolioNews from './PortfolioNews';
 import AIAnalysis from './AIAnalysis';
 import MarketNews from './MarketNews';
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 interface Props {
   holdings: HoldingWithMetrics[];
@@ -19,16 +14,6 @@ interface Props {
 
 export default function AnalysisTab({ holdings, lang, onLangChange }: Props) {
   const [filterSymbol, setFilterSymbol] = useState<string>('all');
-
-  const symbols = [...new Set(holdings.map((h) => toYahooSymbol(h.symbol, h.type)))].join(',');
-
-  const { data } = useSWR<{ articles: NewsItem[] }>(
-    symbols ? `/api/news?symbols=${symbols}` : null,
-    fetcher,
-    { refreshInterval: 0 },
-  );
-
-  const articles = data?.articles ?? [];
 
   const langToggle = (
     <div className="flex items-center rounded-lg border border-border overflow-hidden text-xs font-medium">
@@ -54,7 +39,7 @@ export default function AnalysisTab({ holdings, lang, onLangChange }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         <div className="h-[480px] lg:col-span-1 lg:h-[900px]"><PortfolioNews holdings={holdings} lang={lang} filterSymbol={filterSymbol} onFilterChange={setFilterSymbol} /></div>
-        <div className="lg:col-span-2 lg:h-[900px]"><AIAnalysis holdings={holdings} articles={articles} lang={lang} /></div>
+        <div className="lg:col-span-2 lg:h-[900px]"><AIAnalysis holdings={holdings} lang={lang} /></div>
       </div>
     </div>
   );

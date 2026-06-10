@@ -2,22 +2,14 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { HoldingWithMetrics } from '@/lib/types';
-import type { NewsItem } from '@/app/api/news/route';
 
 interface Props {
   holdings: HoldingWithMetrics[];
-  articles: NewsItem[];
   lang: 'en' | 'zh-TW';
 }
 
 type Status = 'idle' | 'streaming' | 'done' | 'error';
 type Provider = 'gemini' | 'groq' | 'claude-sonnet' | 'claude-opus';
-
-interface BenchmarkData {
-  symbol: string;
-  ytd: number | null;
-  oneYear: number | null;
-}
 
 const PROVIDERS: { id: Provider; label: string }[] = [
   { id: 'gemini',        label: 'Gemini 2.5 Flash'  },
@@ -141,17 +133,6 @@ function inlineBold(text: string): React.ReactNode {
   });
 }
 
-function extractWatchlist(analysisText: string): string | null {
-  const marker = '12-Month Watchlist';
-  const idx = analysisText.indexOf(marker);
-  if (idx === -1) return null;
-  // Skip the header line, grab everything that follows (watchlist is the last section)
-  const afterHeader = analysisText.slice(idx + marker.length);
-  const firstNewline = afterHeader.indexOf('\n');
-  const body = afterHeader.slice(firstNewline + 1).trim();
-  return body.slice(0, 1000) || null;
-}
-
 function formatAge(ts: number): string {
   const mins = Math.floor((Date.now() - ts) / 60000);
   if (mins < 1) return 'just now';
@@ -161,7 +142,7 @@ function formatAge(ts: number): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export default function AIAnalysis({ holdings, articles, lang }: Props) {
+export default function AIAnalysis({ holdings, lang }: Props) {
   const [status, setStatus] = useState<Status>('idle');
   const [text, setText] = useState('');
   const [provider, setProvider] = useState<Provider>('gemini');
@@ -191,37 +172,17 @@ export default function AIAnalysis({ holdings, articles, lang }: Props) {
       return;
     }
 
-    const previousWatchlist = extractWatchlist(text);
     setText('');
     setStatus('streaming');
     abortRef.current = new AbortController();
 
     try {
-      // Fetch VTI benchmark returns in parallel before sending the analysis request
-      let benchmark: BenchmarkData | null = null;
-      try {
-        const [ytdRes, oneYearRes] = await Promise.all([
-          fetch('/api/history?symbol=VTI&range=YTD'),
-          fetch('/api/history?symbol=VTI&range=1Y'),
-        ]);
-        const [ytdData, oneYearData] = await Promise.all([ytdRes.json(), oneYearRes.json()]);
-        const computeReturn = (points: { close: number }[]) => {
-          if (points.length < 2) return null;
-          return ((points[points.length - 1].close - points[0].close) / points[0].close) * 100;
-        };
-        benchmark = {
-          symbol: 'VTI',
-          ytd: computeReturn(ytdData.points ?? []),
-          oneYear: computeReturn(oneYearData.points ?? []),
-        };
-      } catch {
-        // proceed without benchmark if fetch fails
-      }
-
+      // Holdings, news, benchmark, and previous watchlist are all assembled
+      // server-side from Redis and Yahoo — only language and provider go up.
       const res = await fetch('/api/analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ holdings, articles, lang, provider, benchmark, previousWatchlist }),
+        body: JSON.stringify({ lang, provider }),
         signal: abortRef.current.signal,
       });
 
@@ -260,7 +221,7 @@ export default function AIAnalysis({ holdings, articles, lang }: Props) {
         setStatus('error');
       }
     }
-  }, [holdings, articles, lang, status, provider, text]);
+  }, [lang, status, provider]);
 
 
   return (

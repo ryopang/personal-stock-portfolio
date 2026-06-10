@@ -51,6 +51,15 @@ export interface SearchResult {
   type: AssetType;
 }
 
+export interface NewsItem {
+  title: string;
+  summary: string;
+  link: string;
+  pubDate: string;
+  publisher: string;
+  symbol: string;
+}
+
 export interface DailySnapshot {
   date: string;       // YYYY-MM-DD — used as the Redis hash field key
   timestamp: number;  // Unix ms
