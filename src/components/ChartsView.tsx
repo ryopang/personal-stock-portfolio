@@ -216,6 +216,14 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
     return benchmarkVals.map(v => v !== null ? ((v - base) / base) * 100 : null);
   }, [benchmarkVals]);
 
+  const showIndustryOverlays = mode !== 'return';
+  const hasSelectedIndustry = enabled.size > 0;
+
+  // Auto-disable benchmark when an industry is selected (incompatible views)
+  useEffect(() => {
+    if (hasSelectedIndustry) setShowBenchmark(false);
+  }, [hasSelectedIndustry]);
+
   if (!data) {
     return (
       <div className="card p-6">
@@ -264,14 +272,6 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
   const n = filtered.length;
 
   function xOf(i: number) { return ml + (i / (n - 1)) * cW; }
-
-  const showIndustryOverlays = mode !== 'return';
-  const hasSelectedIndustry = enabled.size > 0;
-
-  // Auto-disable benchmark when an industry is selected (incompatible views)
-  useEffect(() => {
-    if (hasSelectedIndustry) setShowBenchmark(false);
-  }, [hasSelectedIndustry]);
 
   // When an industry is selected, scale the y-axis to that industry's data only
   const industryVals = showIndustryOverlays
