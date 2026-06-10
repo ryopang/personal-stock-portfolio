@@ -9,6 +9,7 @@ import HoldingsSection from './HoldingsSection';
 import AddHoldingModal from './AddHoldingModal';
 import CSVImportModal from './CSVImportModal';
 import HistoricalImportModal from './HistoricalImportModal';
+import MacroContextModal from './MacroContextModal';
 import EmptyState from './EmptyState';
 import ChartsView from './ChartsView';
 import AnalysisTab from './AnalysisTab';
@@ -32,6 +33,7 @@ export default function Dashboard({ initialHoldings }: Props) {
   const [editTarget, setEditTarget] = useState<HoldingWithMetrics | null>(null);
   const [csvImportOpen, setCSVImportOpen] = useState(false);
   const [historicalImportOpen, setHistoricalImportOpen] = useState(false);
+  const [macroContextOpen, setMacroContextOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [privacyMode, setPrivacyMode] = useState(false);
@@ -304,6 +306,16 @@ export default function Dashboard({ initialHoldings }: Props) {
                     </svg>
                     Import history
                   </button>
+                  <button
+                    onClick={() => { setAdminOpen(false); setMacroContextOpen(true); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
+                    style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
+                  >
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                    </svg>
+                    Edit macro context
+                  </button>
                   <div className="my-1 border-t" style={{ borderColor: 'var(--color-border)' }} />
                   <button
                     onClick={() => {
@@ -453,6 +465,11 @@ export default function Dashboard({ initialHoldings }: Props) {
           onClose={() => setHistoricalImportOpen(false)}
           onImportComplete={handleHistoricalImportComplete}
         />
+      )}
+
+      {/* Macro context editor */}
+      {macroContextOpen && (
+        <MacroContextModal onClose={() => setMacroContextOpen(false)} />
       )}
 
       {/* Investment advisor chatbot */}
