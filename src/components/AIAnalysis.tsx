@@ -13,6 +13,12 @@ interface Props {
 type Status = 'idle' | 'streaming' | 'done' | 'error';
 type Provider = 'gemini' | 'groq' | 'claude-sonnet' | 'claude-opus';
 
+interface BenchmarkData {
+  symbol: string;
+  ytd: number | null;
+  oneYear: number | null;
+}
+
 const PROVIDERS: { id: Provider; label: string }[] = [
   { id: 'gemini',        label: 'Gemini 2.5 Flash'  },
   { id: 'groq',          label: 'Groq (Llama 3.3)'  },
@@ -135,6 +141,17 @@ function inlineBold(text: string): React.ReactNode {
   });
 }
 
+function extractWatchlist(analysisText: string): string | null {
+  const marker = '12-Month Watchlist';
+  const idx = analysisText.indexOf(marker);
+  if (idx === -1) return null;
+  // Skip the header line, grab everything that follows (watchlist is the last section)
+  const afterHeader = analysisText.slice(idx + marker.length);
+  const firstNewline = afterHeader.indexOf('\n');
+  const body = afterHeader.slice(firstNewline + 1).trim();
+  return body.slice(0, 1000) || null;
+}
+
 function formatAge(ts: number): string {
   const mins = Math.floor((Date.now() - ts) / 60000);
   if (mins < 1) return 'just now';
@@ -174,15 +191,37 @@ export default function AIAnalysis({ holdings, articles, lang }: Props) {
       return;
     }
 
+    const previousWatchlist = extractWatchlist(text);
     setText('');
     setStatus('streaming');
     abortRef.current = new AbortController();
 
     try {
+      // Fetch VTI benchmark returns in parallel before sending the analysis request
+      let benchmark: BenchmarkData | null = null;
+      try {
+        const [ytdRes, oneYearRes] = await Promise.all([
+          fetch('/api/history?symbol=VTI&range=YTD'),
+          fetch('/api/history?symbol=VTI&range=1Y'),
+        ]);
+        const [ytdData, oneYearData] = await Promise.all([ytdRes.json(), oneYearRes.json()]);
+        const computeReturn = (points: { close: number }[]) => {
+          if (points.length < 2) return null;
+          return ((points[points.length - 1].close - points[0].close) / points[0].close) * 100;
+        };
+        benchmark = {
+          symbol: 'VTI',
+          ytd: computeReturn(ytdData.points ?? []),
+          oneYear: computeReturn(oneYearData.points ?? []),
+        };
+      } catch {
+        // proceed without benchmark if fetch fails
+      }
+
       const res = await fetch('/api/analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ holdings, articles, lang, provider }),
+        body: JSON.stringify({ holdings, articles, lang, provider, benchmark, previousWatchlist }),
         signal: abortRef.current.signal,
       });
 
@@ -221,7 +260,7 @@ export default function AIAnalysis({ holdings, articles, lang }: Props) {
         setStatus('error');
       }
     }
-  }, [holdings, articles, lang, status, provider]);
+  }, [holdings, articles, lang, status, provider, text]);
 
 
   return (
