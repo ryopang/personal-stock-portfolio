@@ -5,9 +5,13 @@ import { useState, useEffect, useRef, FormEvent } from 'react';
 const SESSION_KEY = 'portfolio_unlocked';
 
 export default function PasswordGate({ children }: { children: React.ReactNode }) {
-  const [unlocked, setUnlocked] = useState(() =>
-    typeof window !== 'undefined' && sessionStorage.getItem(SESSION_KEY) === 'true'
-  );
+  const [unlocked, setUnlocked] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      sessionStorage.getItem(SESSION_KEY) === 'true' ||
+      localStorage.getItem('portfolio_gate_disabled') === 'true'
+    );
+  });
   const [input, setInput] = useState('');
   const [error, setError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
