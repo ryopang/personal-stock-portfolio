@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import type { NewsItem } from '@/app/api/news/route';
 import type { HoldingWithMetrics } from '@/lib/types';
 import redis from '@/lib/redis';
+import Anthropic from '@anthropic-ai/sdk';
 
 const CACHE_KEY = 'portfolio:analysis';
 
@@ -167,20 +168,38 @@ Tone: Direct, honest, fiduciary. Don't sugarcoat weak positions. Don't recommend
 
 const PROVIDERS = {
   gemini: {
+    sdk: 'openai' as const,
     url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
     model: 'gemini-2.5-flash',
     maxTokens: 16000,
     envKey: 'GEMINI_API_KEY',
-    label: 'Gemini',
+    label: 'Gemini 2.5 Flash',
     keyHint: 'Get a free key at aistudio.google.com',
   },
   groq: {
+    sdk: 'openai' as const,
     url: 'https://api.groq.com/openai/v1/chat/completions',
     model: 'llama-3.3-70b-versatile',
     maxTokens: 16000,
     envKey: 'GROQ_API_KEY',
-    label: 'Groq',
+    label: 'Groq (Llama 3.3)',
     keyHint: 'Get a free key at console.groq.com',
+  },
+  'claude-sonnet': {
+    sdk: 'anthropic' as const,
+    model: 'claude-sonnet-4-6',
+    maxTokens: 16000,
+    envKey: 'ANTHROPIC_API_KEY',
+    label: 'Claude Sonnet 4.6',
+    keyHint: 'Get an API key at console.anthropic.com',
+  },
+  'claude-opus': {
+    sdk: 'anthropic' as const,
+    model: 'claude-opus-4-8',
+    maxTokens: 16000,
+    envKey: 'ANTHROPIC_API_KEY',
+    label: 'Claude Opus 4.8',
+    keyHint: 'Get an API key at console.anthropic.com',
   },
 } as const;
 
@@ -213,7 +232,42 @@ export async function POST(req: NextRequest) {
 
   const prompt = buildPrompt(holdings, articles ?? [], lang);
   const systemPrompt = lang === 'zh-TW' ? SYSTEM_PROMPT_ZH : SYSTEM_PROMPT_EN;
+  const encoder = new TextEncoder();
 
+  // Anthropic SDK path (Claude Sonnet / Opus)
+  if (config.sdk === 'anthropic') {
+    const client = new Anthropic({ apiKey });
+    const readable = new ReadableStream({
+      async start(controller) {
+        let fullText = '';
+        try {
+          const stream = client.messages.stream({
+            model: config.model,
+            max_tokens: config.maxTokens,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: prompt }],
+          });
+          stream.on('text', (text) => {
+            controller.enqueue(encoder.encode(text));
+            fullText += text;
+          });
+          await stream.finalMessage();
+          if (fullText) {
+            await redis.set(CACHE_KEY, { text: fullText, provider: providerKey, generatedAt: Date.now() });
+          }
+        } catch (err) {
+          controller.error(err);
+        } finally {
+          controller.close();
+        }
+      },
+    });
+    return new Response(readable, {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+    });
+  }
+
+  // OpenAI-compatible path (Gemini, Groq)
   const apiRes = await fetch(config.url, {
     method: 'POST',
     headers: {
@@ -236,7 +290,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `${config.label} API error: ${msg}` }, { status: 502 });
   }
 
-  const encoder = new TextEncoder();
   const readable = new ReadableStream({
     async start(controller) {
       const reader = apiRes.body!.getReader();
@@ -270,7 +323,6 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Persist completed analysis to Redis
         if (fullText) {
           await redis.set(CACHE_KEY, { text: fullText, provider: providerKey, generatedAt: Date.now() });
         }

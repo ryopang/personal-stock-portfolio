@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import type { HoldingWithMetrics, PortfolioTotals } from '@/lib/types';
 
 type Role = 'user' | 'assistant';
-type Provider = 'gemini' | 'groq';
+type Provider = 'gemini' | 'groq' | 'claude-sonnet' | 'claude-opus';
 
 interface Message {
   role: Role;
@@ -18,8 +18,10 @@ interface Props {
 }
 
 const PROVIDERS: { id: Provider; label: string }[] = [
-  { id: 'gemini', label: 'Gemini 2.5 Flash' },
-  { id: 'groq',   label: 'Groq (Llama 3.3)' },
+  { id: 'gemini',        label: 'Gemini 2.5 Flash'  },
+  { id: 'groq',          label: 'Groq (Llama 3.3)'  },
+  { id: 'claude-sonnet', label: 'Claude Sonnet 4.6' },
+  { id: 'claude-opus',   label: 'Claude Opus 4.8'   },
 ];
 
 const GENERIC_QUESTIONS = [
