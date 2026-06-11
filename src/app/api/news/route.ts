@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { fetchNewsForSymbols, translateArticles } from '@/lib/news';
+import { newsParamsSchema } from '@/lib/schemas';
 import type { NewsItem } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -13,8 +14,10 @@ const PAGE_SIZE = 6;
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const symbolsParam = searchParams.get('symbols') ?? '';
-  const translate = searchParams.get('translate') ?? '';
-  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
+  const { page, translate } = newsParamsSchema.parse({
+    page: searchParams.get('page') ?? undefined,
+    translate: searchParams.get('translate') || undefined,
+  });
   const all = searchParams.get('all') === '1';
 
   if (!symbolsParam) {

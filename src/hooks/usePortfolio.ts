@@ -62,7 +62,9 @@ export function usePortfolio(): UsePortfolioReturn {
   // but always captures the current computed holdings/totals.
   const holdingsRef = useRef(holdingsWithMetrics);
   const totalsRef = useRef(totals);
+  // eslint-disable-next-line react-hooks/refs
   holdingsRef.current = holdingsWithMetrics;
+  // eslint-disable-next-line react-hooks/refs
   totalsRef.current = totals;
 
   useEffect(() => {
