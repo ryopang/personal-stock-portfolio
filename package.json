@@ -21,6 +21,7 @@
     "react-dom": "19.2.3",
     "swr": "^2.4.0",
     "yahoo-finance2": "^3.13.0",
+    "zod": "^4.4.3",
     "zustand": "^5.0.11"
   },
   "devDependencies": {

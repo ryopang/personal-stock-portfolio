@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import redis from '@/lib/redis';
+import { dailySnapshotSchema, snapshotImportSchema, firstIssue } from '@/lib/schemas';
 import type { DailySnapshot } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -8,21 +9,23 @@ const HASH_KEY = 'portfolio:snapshots';
 
 export async function POST(req: NextRequest) {
   try {
-    const { snapshots } = await req.json() as { snapshots: DailySnapshot[] };
-
-    if (!Array.isArray(snapshots) || snapshots.length === 0) {
-      return NextResponse.json({ error: 'Expected non-empty snapshots array' }, { status: 400 });
+    const parsedBody = snapshotImportSchema.safeParse(await req.json());
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: firstIssue(parsedBody.error) }, { status: 400 });
     }
 
+    // Per-row validation: bad rows are skipped (and reported), not fatal
     const valid: DailySnapshot[] = [];
     const skipped: string[] = [];
 
-    for (const s of snapshots) {
-      if (!s.date || typeof s.totalValue !== 'number') {
-        skipped.push(s.date ?? '(no date)');
+    for (const raw of parsedBody.data.snapshots) {
+      const row = dailySnapshotSchema.safeParse(raw);
+      if (!row.success) {
+        const date = (raw as { date?: string })?.date;
+        skipped.push(typeof date === 'string' ? date : '(no date)');
         continue;
       }
-      valid.push(s);
+      valid.push(row.data);
     }
 
     if (valid.length > 0) {
