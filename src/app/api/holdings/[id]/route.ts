@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getHolding, upsertHolding, deleteHolding } from '@/lib/holdings-service';
-import type { AssetType } from '@/lib/types';
+import { holdingUpdateSchema, firstIssue } from '@/lib/schemas';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,28 +16,20 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { quantity, costBasis, purchaseDate, type, industry } = body as {
-      quantity?: number;
-      costBasis?: number;
-      purchaseDate?: string;
-      type?: AssetType;
-      industry?: string;
-    };
-
-    if (quantity != null && quantity <= 0) {
-      return NextResponse.json({ error: 'Quantity must be greater than 0' }, { status: 400 });
+    const parsed = holdingUpdateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: firstIssue(parsed.error) }, { status: 400 });
     }
-    if (costBasis != null && costBasis <= 0) {
-      return NextResponse.json({ error: 'Cost basis must be greater than 0' }, { status: 400 });
-    }
+    const { quantity, costBasis, purchaseDate, type, industry } = parsed.data;
 
     const updated = {
       ...existing,
-      ...(quantity != null ? { quantity: Number(quantity) } : {}),
-      ...(costBasis != null ? { costBasis: Number(costBasis) } : {}),
+      ...(quantity != null ? { quantity } : {}),
+      ...(costBasis != null ? { costBasis } : {}),
       ...(purchaseDate ? { purchaseDate } : {}),
       ...(type ? { type } : {}),
-      ...('industry' in body ? { industry: industry?.trim() || undefined } : {}),
+      // Present-but-empty clears the industry; absent leaves it untouched
+      ...('industry' in body ? { industry: industry || undefined } : {}),
     };
 
     await upsertHolding(updated);

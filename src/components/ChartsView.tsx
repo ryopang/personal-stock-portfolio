@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import { formatCurrencyK } from '@/lib/formatters';
 import type { HoldingWithMetrics, DailySnapshot } from '@/lib/types';
 import { toYahooSymbol } from '@/lib/crypto-symbols';
-import type { HistoryPoint, HistoryResponse } from '@/app/api/history/route';
+import type { HistoryResponse } from '@/app/api/history/route';
 
 const COLORS = [
   '#0071E3', '#34C759', '#FF9500', '#AF52DE', '#FF3B30',
@@ -221,6 +221,7 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
 
   // Auto-disable benchmark when an industry is selected (incompatible views)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (hasSelectedIndustry) setShowBenchmark(false);
   }, [hasSelectedIndustry]);
 
