@@ -56,6 +56,7 @@ interface Props {
   onEdit: (holding: HoldingWithMetrics) => void;
   onDelete: (id: string) => void;
   moverFilter?: 'gainers' | 'losers' | null;
+  onClearMoverFilter?: () => void;
 }
 
 function computeAggregate(lots: HoldingWithMetrics[]): HoldingWithMetrics {
@@ -78,7 +79,7 @@ function computeAggregate(lots: HoldingWithMetrics[]): HoldingWithMetrics {
   };
 }
 
-export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete, moverFilter }: Props) {
+export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete, moverFilter, onClearMoverFilter }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('all');
   const [activeIndustry, setActiveIndustry] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('symbol');
@@ -363,10 +364,25 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
               <tbody>
                 {displayHoldings.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-secondary text-sm">
-                      {activeIndustry
-                        ? `No ${activeIndustry === '—' ? 'uncategorized' : activeIndustry} holdings.`
-                        : `No ${activeTab === 'all' ? '' : activeTab} holdings yet.`}
+                    <td colSpan={9} className="py-12 text-center">
+                      <p className="text-secondary text-sm mb-2">
+                        {activeIndustry
+                          ? `No ${activeIndustry === '—' ? 'uncategorized' : activeIndustry} holdings.`
+                          : `No ${activeTab === 'all' ? '' : activeTab} holdings yet.`}
+                      </p>
+                      {(activeIndustry || activeTab !== 'all' || alertFilter || moverFilter) && (
+                        <button
+                          onClick={() => {
+                            setActiveTab('all');
+                            setActiveIndustry(null);
+                            setAlertFilter(false);
+                            onClearMoverFilter?.();
+                          }}
+                          className="text-xs text-accent underline underline-offset-2 hover:no-underline transition-all"
+                        >
+                          Clear filters
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ) : sortedGroups.map(({ lots, aggregate }) =>
@@ -446,10 +462,25 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {displayHoldings.length === 0 ? (
-              <div className="card py-12 text-center text-secondary text-sm">
-                {activeIndustry
-                  ? `No ${activeIndustry === '—' ? 'uncategorized' : activeIndustry} holdings.`
-                  : `No ${activeTab === 'all' ? '' : activeTab} holdings yet.`}
+              <div className="card py-12 text-center">
+                <p className="text-secondary text-sm mb-2">
+                  {activeIndustry
+                    ? `No ${activeIndustry === '—' ? 'uncategorized' : activeIndustry} holdings.`
+                    : `No ${activeTab === 'all' ? '' : activeTab} holdings yet.`}
+                </p>
+                {(activeIndustry || activeTab !== 'all' || alertFilter || moverFilter) && (
+                  <button
+                    onClick={() => {
+                      setActiveTab('all');
+                      setActiveIndustry(null);
+                      setAlertFilter(false);
+                      onClearMoverFilter?.();
+                    }}
+                    className="text-xs text-accent underline underline-offset-2 hover:no-underline transition-all"
+                  >
+                    Clear filters
+                  </button>
+                )}
               </div>
             ) : sortedGroups.map(({ lots, aggregate }) =>
               lots.length === 1 ? (

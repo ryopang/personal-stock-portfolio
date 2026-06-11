@@ -5,6 +5,9 @@ import { mutate } from 'swr';
 import { usePortfolioStore } from '@/store/portfolioStore';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useModalBehavior } from '@/hooks/useModalBehavior';
+import { useToastStore } from '@/store/toastStore';
+import Toasts from './Toasts';
+import ConfirmModal from './ConfirmModal';
 import PortfolioSummary from './PortfolioSummary';
 import HoldingsSection from './HoldingsSection';
 import AddHoldingModal from './AddHoldingModal';
@@ -40,6 +43,8 @@ export default function Dashboard({ initialHoldings }: Props) {
   const [privacyMode, setPrivacyMode] = useState(false);
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [clearConfirmText, setClearConfirmText] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const pushToast = useToastStore((s) => s.push);
   const [activeView, setActiveView] = useState<'portfolio' | 'charts' | 'analysis'>('portfolio');
   const [moverFilter, setMoverFilter] = useState<'gainers' | 'losers' | null>(null);
   const [lang, setLang] = useState<'en' | 'zh-TW'>('zh-TW');
@@ -116,20 +121,23 @@ export default function Dashboard({ initialHoldings }: Props) {
     setModalOpen(true);
   };
 
-  const handleDelete = useCallback(async (id: string) => {
-    if (!confirm('Remove this holding from your portfolio?')) return;
-    // Optimistic update
+  const handleDelete = useCallback((id: string) => {
+    setDeleteTarget(id);
+  }, []);
+
+  const confirmDelete = useCallback(async (id: string) => {
+    setDeleteTarget(null);
     removeHolding(id);
     try {
       const res = await fetch(`/api/holdings/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
     } catch {
-      // Restore on failure — re-fetch from server
       const res = await fetch('/api/holdings');
       const data = await res.json();
       setHoldings(data.holdings ?? []);
+      pushToast('Failed to delete holding. Your portfolio has been restored.');
     }
-  }, [removeHolding, setHoldings]);
+  }, [removeHolding, setHoldings, pushToast]);
 
   const handleClearAll = useCallback(async () => {
     clearHoldingsStore();
@@ -139,12 +147,12 @@ export default function Dashboard({ initialHoldings }: Props) {
       const res = await fetch('/api/holdings', { method: 'DELETE' });
       if (!res.ok) throw new Error('Clear failed');
     } catch {
-      // Restore on failure
       const res = await fetch('/api/holdings');
       const data = await res.json();
       setHoldings(data.holdings ?? []);
+      pushToast('Failed to clear portfolio. Your holdings have been restored.');
     }
-  }, [clearHoldingsStore, setHoldings]);
+  }, [clearHoldingsStore, setHoldings, pushToast]);
 
   const handleImportComplete = useCallback(async (importedHoldings: Holding[]) => {
     for (const h of importedHoldings) addHolding(h);
@@ -416,8 +424,14 @@ export default function Dashboard({ initialHoldings }: Props) {
       {/* Scrollable content */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-4 space-y-4">
         {error && (
-          <div className="rounded-xl bg-loss/10 border border-loss/20 px-4 py-3 text-sm text-loss">
-            Failed to fetch prices. Check your connection and try refreshing.
+          <div className="rounded-xl bg-loss/10 border border-loss/20 px-4 py-3 text-sm text-loss flex items-center justify-between gap-3">
+            <span>Failed to fetch prices. Check your connection and try refreshing.</span>
+            <button
+              onClick={() => refresh()}
+              className="shrink-0 text-xs font-semibold underline underline-offset-2 hover:no-underline transition-all"
+            >
+              Retry
+            </button>
           </div>
         )}
         {missingQuoteSymbols.length > 0 && (
@@ -437,6 +451,7 @@ export default function Dashboard({ initialHoldings }: Props) {
             onEdit={handleEdit}
             onDelete={handleDelete}
             moverFilter={moverFilter}
+            onClearMoverFilter={() => setMoverFilter(null)}
           />
         ) : activeView === 'charts' ? (
           <ChartsView holdings={holdingsWithMetrics} />
@@ -477,6 +492,21 @@ export default function Dashboard({ initialHoldings }: Props) {
 
       {/* Investment advisor chatbot */}
       <InvestmentChatbot holdings={holdingsWithMetrics} lang={lang} />
+
+      {/* Delete holding confirmation */}
+      {deleteTarget && (
+        <ConfirmModal
+          title="Remove this holding?"
+          body="This will permanently remove the holding from your portfolio."
+          confirmLabel="Remove"
+          destructive
+          onConfirm={() => confirmDelete(deleteTarget)}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {/* Toast notifications */}
+      <Toasts />
 
       {/* Clear all confirmation modal */}
       {clearModalOpen && (
