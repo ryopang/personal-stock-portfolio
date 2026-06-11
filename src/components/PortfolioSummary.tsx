@@ -146,6 +146,8 @@ export default function PortfolioSummary({
               <span className="no-privacy flex items-center gap-1">
                 <button
                   onClick={() => onMoverFilter(moverFilter === 'gainers' ? null : 'gainers')}
+                  aria-pressed={moverFilter === 'gainers'}
+                  aria-label="Filter to gainers"
                   className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] font-semibold tabular-nums transition-all"
                   style={{
                     backgroundColor: moverFilter === 'gainers' ? '#34C759' : 'rgba(52,199,89,0.12)',
@@ -160,6 +162,8 @@ export default function PortfolioSummary({
                 </button>
                 <button
                   onClick={() => onMoverFilter(moverFilter === 'losers' ? null : 'losers')}
+                  aria-pressed={moverFilter === 'losers'}
+                  aria-label="Filter to losers"
                   className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] font-semibold tabular-nums transition-all"
                   style={{
                     backgroundColor: moverFilter === 'losers' ? '#FF3B30' : 'rgba(255,59,48,0.12)',

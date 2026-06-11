@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { mutate } from 'swr';
 import { usePortfolioStore } from '@/store/portfolioStore';
 import { usePortfolio } from '@/hooks/usePortfolio';
+import { useModalBehavior } from '@/hooks/useModalBehavior';
 import PortfolioSummary from './PortfolioSummary';
 import HoldingsSection from './HoldingsSection';
 import AddHoldingModal from './AddHoldingModal';
@@ -50,6 +51,8 @@ export default function Dashboard({ initialHoldings }: Props) {
   );
   const adminRef = useRef<HTMLDivElement>(null);
   const stickyBandRef = useRef<HTMLDivElement>(null);
+
+  useModalBehavior(() => { setClearModalOpen(false); setClearConfirmText(''); }, clearModalOpen);
 
   useEffect(() => {
     if (!adminOpen) return;
@@ -477,7 +480,7 @@ export default function Dashboard({ initialHoldings }: Props) {
 
       {/* Clear all confirmation modal */}
       {clearModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="clear-all-title">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setClearModalOpen(false)} />
           <div
             className="relative w-full max-w-sm mx-4 rounded-2xl shadow-2xl p-6 space-y-4"
@@ -491,7 +494,7 @@ export default function Dashboard({ initialHoldings }: Props) {
                 </svg>
               </div>
               <div>
-                <h2 className="text-base font-semibold" style={{ color: 'var(--color-primary)' }}>Delete all holdings?</h2>
+                <h2 id="clear-all-title" className="text-base font-semibold" style={{ color: 'var(--color-primary)' }}>Delete all holdings?</h2>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--color-secondary)' }}>This will permanently remove all {holdings.length} holdings. This cannot be undone.</p>
               </div>
             </div>
@@ -505,7 +508,6 @@ export default function Dashboard({ initialHoldings }: Props) {
                 onChange={(e) => setClearConfirmText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && clearConfirmText === 'DELETE') handleClearAll();
-                  if (e.key === 'Escape') setClearModalOpen(false);
                 }}
                 placeholder="DELETE"
                 autoFocus

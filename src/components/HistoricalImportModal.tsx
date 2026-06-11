@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useModalBehavior } from '@/hooks/useModalBehavior';
 import type { DailySnapshot } from '@/lib/types';
 
 interface Props {
@@ -107,10 +108,7 @@ export default function HistoricalImportModal({ onClose, onImportComplete }: Pro
   const [apiError, setApiError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
+  useModalBehavior(onClose);
 
   const handleFile = (file: File) => {
     if (!file.name.endsWith('.csv')) {
@@ -180,6 +178,9 @@ export default function HistoricalImportModal({ onClose, onImportComplete }: Pro
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
       onClick={step !== 'importing' ? handleClose : undefined}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="historical-import-title"
     >
       <div
         className="card w-full max-w-2xl max-h-[85vh] flex flex-col"
@@ -188,7 +189,7 @@ export default function HistoricalImportModal({ onClose, onImportComplete }: Pro
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
           <div>
-            <h2 className="text-base font-semibold text-primary">Import Historical Data</h2>
+            <h2 id="historical-import-title" className="text-base font-semibold text-primary">Import Historical Data</h2>
             <p className="text-xs text-secondary mt-0.5">
               Upload a CSV with columns: <code className="font-mono bg-surface-secondary px-1 rounded">date, totalGain, returnPct</code>
             </p>

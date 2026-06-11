@@ -219,7 +219,7 @@ export default function InvestmentChatbot({ holdings, lang }: Props) {
                 value={provider}
                 onChange={(e) => setProvider(e.target.value as Provider)}
                 disabled={streaming}
-                className="text-xs rounded-lg px-2 py-1 outline-none"
+                className="text-xs rounded-lg px-2 py-1"
                 style={{
                   backgroundColor: 'var(--color-surface-secondary)',
                   color: 'var(--color-secondary)',
@@ -362,7 +362,7 @@ export default function InvestmentChatbot({ holdings, lang }: Props) {
             style={{ borderTop: '1px solid var(--color-border)' }}
           >
             <div
-              className="flex items-end gap-2 rounded-xl px-3 py-2"
+              className="flex items-end gap-2 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-0"
               style={{
                 backgroundColor: 'var(--color-surface-secondary)',
                 border: '1px solid var(--color-border)',

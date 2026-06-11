@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useModalBehavior } from '@/hooks/useModalBehavior';
 
 interface Props {
   onClose: () => void;
@@ -14,6 +15,8 @@ export default function MacroContextModal({ onClose }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useModalBehavior(onClose);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,14 +57,14 @@ export default function MacroContextModal({ onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="macro-context-title">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div
         className="relative w-full max-w-lg mx-4 rounded-2xl shadow-2xl p-6 space-y-4"
         style={{ backgroundColor: 'var(--color-surface)' }}
       >
         <div>
-          <h2 className="text-base font-semibold" style={{ color: 'var(--color-primary)' }}>
+          <h2 id="macro-context-title" className="text-base font-semibold" style={{ color: 'var(--color-primary)' }}>
             Macro context for AI analysis
           </h2>
           <p className="text-xs mt-0.5" style={{ color: 'var(--color-secondary)' }}>

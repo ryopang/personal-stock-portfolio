@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
+import { useModalBehavior } from '@/hooks/useModalBehavior';
 import { KNOWN_CRYPTO_SYMBOLS } from '@/lib/crypto-symbols';
 import type { AssetType, Holding } from '@/lib/types';
 
@@ -130,10 +131,7 @@ export default function CSVImportModal({ onClose, onImportComplete }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef(false);
 
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
+  useModalBehavior(onClose);
 
   const handleFile = (file: File) => {
     if (!file.name.endsWith('.csv') && file.type !== 'text/csv') {
@@ -228,6 +226,7 @@ export default function CSVImportModal({ onClose, onImportComplete }: Props) {
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="csv-import-title"
     >
       {/* Backdrop */}
       <div
@@ -241,7 +240,7 @@ export default function CSVImportModal({ onClose, onImportComplete }: Props) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border shrink-0">
-          <h2 className="text-lg font-semibold text-primary">Import from CSV</h2>
+          <h2 id="csv-import-title" className="text-lg font-semibold text-primary">Import from CSV</h2>
           {step !== 'importing' && (
             <button
               onClick={handleClose}

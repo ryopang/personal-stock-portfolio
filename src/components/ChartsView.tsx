@@ -455,7 +455,7 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
             value={mode}
             onChange={e => setMode(e.target.value as ChartMode)}
             disabled={showBenchmark}
-            className="text-xs font-medium rounded-lg px-2.5 py-1 outline-none shrink-0"
+            className="text-xs font-medium rounded-lg px-2.5 py-1 shrink-0"
             style={{
               backgroundColor: 'var(--color-surface-secondary)',
               color: showBenchmark ? 'var(--color-secondary)' : 'var(--color-primary)',
@@ -488,7 +488,7 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
             <select
               value={benchmarkSymbol}
               onChange={e => setBenchmarkSymbol(e.target.value as BenchmarkSymbol)}
-              className="text-xs font-medium rounded-lg px-2 py-1 outline-none"
+              className="text-xs font-medium rounded-lg px-2 py-1"
               style={{
                 backgroundColor: 'var(--color-surface-secondary)',
                 color: 'var(--color-primary)',

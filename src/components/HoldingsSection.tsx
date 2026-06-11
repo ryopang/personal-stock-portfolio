@@ -245,6 +245,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                 <button
                   key={tab.value}
                   onClick={() => { setActiveTab(tab.value); setActiveIndustry(null); }}
+                  aria-pressed={activeTab === tab.value}
                   className={`inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     activeTab === tab.value
                       ? 'bg-primary text-surface'
@@ -278,6 +279,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                   <button
                     key={industry}
                     onClick={() => setActiveIndustry(isActive ? null : industry)}
+                    aria-pressed={isActive}
                     className={`inline-flex items-center shrink-0 gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${!isActive ? 'chip-industry' : ''}`}
                     style={{
                       backgroundColor: isActive ? 'var(--color-accent)' : undefined,
@@ -317,12 +319,15 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                   {TABLE_HEADERS.map((h) => (
                     <th
                       key={h.label}
+                      aria-sort={sortKey === h.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
                       className={`py-2.5 text-xs font-semibold text-secondary uppercase tracking-wide ${h.className}`}
                     >
                       {h.key === 'symbol' ? (
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => setAlertFilter((f) => !f)}
+                            aria-pressed={alertFilter}
+                            aria-label="Show only movers over 5%"
                             title="Show only movers >5%"
                             className={`inline-flex items-center justify-center w-5 h-5 rounded text-[10px] leading-none transition-colors shrink-0 ${
                               alertFilter
@@ -334,6 +339,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                           </button>
                           <button
                             onClick={() => toggleSort(h.key)}
+                            aria-label={`Sort by ${h.label}`}
                             className="inline-flex items-center gap-1 hover:text-primary transition-colors"
                           >
                             {h.label}
@@ -343,6 +349,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                       ) : (
                         <button
                           onClick={() => toggleSort(h.key)}
+                          aria-label={`Sort by ${h.label}`}
                           className="inline-flex items-center gap-1 hover:text-primary transition-colors"
                         >
                           {h.label}

@@ -244,7 +244,7 @@ export default function AIAnalysis({ holdings, lang }: Props) {
             value={provider}
             onChange={e => setProvider(e.target.value as Provider)}
             disabled={status === 'streaming'}
-            className="text-xs font-medium rounded-lg px-2.5 py-1 outline-none"
+            className="text-xs font-medium rounded-lg px-2.5 py-1"
             style={{
               backgroundColor: 'var(--color-surface-secondary)',
               color: 'var(--color-primary)',
