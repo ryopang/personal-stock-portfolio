@@ -157,7 +157,7 @@ export default function AddHoldingModal({ holding, onClose, onSave }: Props) {
                       type === t.value
                         ? 'bg-primary text-surface'
                         : 'bg-surface-secondary text-secondary hover:text-primary'
-                    } disabled:opacity-60 disabled:cursor-not-allowed`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                     style={{ touchAction: 'manipulation' }}
                   >
                     {t.label}

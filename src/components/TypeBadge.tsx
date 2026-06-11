@@ -10,7 +10,7 @@ export default function TypeBadge({ type }: { type: AssetType }) {
   const { label, className } = config[type];
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase ${className}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-2xs font-semibold tracking-wide uppercase ${className}`}
     >
       {label}
     </span>

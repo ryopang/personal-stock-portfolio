@@ -22,10 +22,10 @@ function FiftyTwoWeekBar({ low, high, current }: { low: number; high: number; cu
         />
       </div>
       <div className="flex justify-between w-16">
-        <span className="text-[9px] tabular-nums" style={{ color: 'var(--color-secondary)' }}>
+        <span className="text-2xs tabular-nums text-secondary">
           {low >= 1000 ? formatCurrencyK(low) : formatCurrencyWhole(low)}
         </span>
-        <span className="text-[9px] tabular-nums" style={{ color: 'var(--color-secondary)' }}>
+        <span className="text-2xs tabular-nums text-secondary">
           {high >= 1000 ? formatCurrencyK(high) : formatCurrencyWhole(high)}
         </span>
       </div>
@@ -144,7 +144,7 @@ export function HoldingTableRow({ holding, onEdit, onDelete, isChild }: Props) {
         {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null ? (
           <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
         ) : (
-          <span className="text-xs" style={{ color: 'var(--color-secondary)' }}>—</span>
+          <span className="text-xs text-secondary">—</span>
         )}
       </td>
     </tr>
@@ -195,10 +195,7 @@ export function GroupSummaryTableRow({ lotCount, aggregate: holding, expanded, o
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
             </svg>
           </button>
-          <span
-            className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums leading-none"
-            style={{ backgroundColor: 'var(--color-surface-secondary)', color: 'var(--color-secondary)' }}
-          >
+          <span className="text-2xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums leading-none bg-surface-secondary text-secondary">
             {lotCount}
           </span>
         </div>
@@ -250,7 +247,7 @@ export function GroupSummaryTableRow({ lotCount, aggregate: holding, expanded, o
         {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null ? (
           <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
         ) : (
-          <span className="text-xs" style={{ color: 'var(--color-secondary)' }}>—</span>
+          <span className="text-xs text-secondary">—</span>
         )}
       </td>
     </tr>
@@ -289,10 +286,7 @@ export function GroupCard({
               </svg>
             )}
             <span className="font-bold text-primary">{holding.symbol.replace(/-USD$/, '')}</span>
-            <span
-              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums leading-none"
-              style={{ backgroundColor: 'var(--color-surface-secondary)', color: 'var(--color-secondary)' }}
-            >
+            <span className="text-2xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums leading-none bg-surface-secondary text-secondary">
               {lotCount}
             </span>
           </div>
@@ -351,7 +345,7 @@ export function GroupCard({
           {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null && (
             <div className="w-16 shrink-0">
               <div className="mb-1.5">
-                <span className="text-[10px] text-secondary">52W</span>
+                <span className="text-2xs text-secondary">52W</span>
               </div>
               <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
             </div>
@@ -453,7 +447,7 @@ export function HoldingCard({ holding, onEdit, onDelete }: Props) {
           {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null && (
             <div className="w-16 shrink-0">
               <div className="mb-1.5">
-                <span className="text-[10px] text-secondary">52W</span>
+                <span className="text-2xs text-secondary">52W</span>
               </div>
               <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
             </div>

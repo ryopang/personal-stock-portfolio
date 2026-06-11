@@ -380,18 +380,14 @@ export default function Dashboard({ initialHoldings }: Props) {
               <button
                 key={view}
                 onClick={() => setActiveView(view)}
-                className="px-4 py-3 sm:py-2 text-sm font-medium capitalize transition-colors relative"
-                style={{
-                  color: activeView === view ? 'var(--color-primary)' : 'var(--color-secondary)',
-                  touchAction: 'manipulation',
-                }}
+                className={`px-4 py-3 sm:py-2 text-sm font-medium capitalize transition-colors relative ${
+                  activeView === view ? 'text-primary' : 'text-secondary'
+                }`}
+                style={{ touchAction: 'manipulation' }}
               >
                 {view === 'portfolio' ? 'Holdings' : view === 'charts' ? 'Charts' : 'Analysis'}
                 {activeView === view && (
-                  <span
-                    className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-                    style={{ backgroundColor: '#0071E3' }}
-                  />
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-accent" />
                 )}
               </button>
             ))}

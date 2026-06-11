@@ -86,7 +86,7 @@ export default function MacroContextModal({ onClose }: Props) {
           className="input resize-y font-mono"
           style={{ fontSize: '0.75rem', lineHeight: 1.5, minHeight: '200px' }}
         />
-        <p className="text-[10px] text-right" style={{ color: 'var(--color-secondary)' }}>
+        <p className="text-2xs text-right" style={{ color: 'var(--color-secondary)' }}>
           {text.length}/4000
         </p>
 

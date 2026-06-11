@@ -532,14 +532,14 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
           <div className="flex items-start gap-0">
             {/* Portfolio metric */}
             <div className="flex flex-col items-center gap-1" style={{ minWidth: 130, paddingRight: 32, borderRight: '1px solid var(--color-border)' }}>
-              <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--color-secondary)' }}>Portfolio</span>
+              <span className="text-2xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-secondary)' }}>Portfolio</span>
               <span className="text-2xl font-bold tabular-nums leading-none" style={{ color: lastMain >= 0 ? '#34C759' : '#FF3B30' }}>
                 {lastMain >= 0 ? '+' : ''}{lastMain.toFixed(2)}%
               </span>
             </div>
             {lastBenchmarkNorm !== null && (
               <div className="flex flex-col items-center gap-1" style={{ minWidth: 130, padding: '0 32px', borderRight: alpha !== null ? '1px solid var(--color-border)' : 'none' }}>
-                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--color-secondary)' }}>{benchmarkLabel}</span>
+                <span className="text-2xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-secondary)' }}>{benchmarkLabel}</span>
                 <span className="text-2xl font-bold tabular-nums leading-none" style={{ color: '#FF9500' }}>
                   {lastBenchmarkNorm >= 0 ? '+' : ''}{lastBenchmarkNorm.toFixed(2)}%
                 </span>
@@ -547,7 +547,7 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
             )}
             {alpha !== null && (
               <div className="flex flex-col items-center gap-1" style={{ minWidth: 130, paddingLeft: 32, paddingRight: 32 }}>
-                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--color-secondary)' }}>Alpha</span>
+                <span className="text-2xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-secondary)' }}>Alpha</span>
                 <span className="text-2xl font-bold tabular-nums leading-none" style={{ color: alpha >= 0 ? '#34C759' : '#FF3B30' }}>
                   {alpha >= 0 ? '+' : ''}{alpha.toFixed(2)} pp
                 </span>
@@ -1244,9 +1244,9 @@ export default function ChartsView({ holdings }: Props) {
                         <div className="flex items-center gap-1.5">
                           <span className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }} />
                           <span className="text-xs md:text-sm font-medium text-primary">{slice.industry}</span>
-                          <span className="text-[10px] md:text-xs font-semibold tabular-nums" style={{ color: slice.color }}>{slice.percent.toFixed(1)}%</span>
+                          <span className="text-2xs md:text-xs font-semibold tabular-nums" style={{ color: slice.color }}>{slice.percent.toFixed(1)}%</span>
                           <span
-                            className="text-[10px] md:text-xs font-semibold tabular-nums px-1 md:px-1.5 py-0.5 rounded-full"
+                            className="text-2xs md:text-xs font-semibold tabular-nums px-1 md:px-1.5 py-0.5 rounded-full"
                             style={{ backgroundColor: slice.color + '22', color: slice.color }}
                           >{slice.count}</span>
                         </div>
@@ -1262,12 +1262,12 @@ export default function ChartsView({ holdings }: Props) {
                       {/* Daily change */}
                       <td className="py-1.5 px-2 md:px-4 text-center whitespace-nowrap" style={{ color: dailyColor }}>
                         <div className="tabular-nums text-xs md:text-sm font-semibold">{fmtMoneyFull(slice.dailyChange)}</div>
-                        <div className="tabular-nums text-[10px] md:text-xs opacity-75">{fmtPct(slice.dailyChangePct)}</div>
+                        <div className="tabular-nums text-2xs md:text-xs opacity-75">{fmtPct(slice.dailyChangePct)}</div>
                       </td>
                       {/* Total gain/loss */}
                       <td className="py-1.5 pl-2 md:pl-4 text-center whitespace-nowrap" style={{ color: gainColor }}>
                         <div className="tabular-nums text-xs md:text-sm font-semibold">{fmtMoney(slice.totalGain)}</div>
-                        <div className="tabular-nums text-[10px] md:text-xs opacity-75">{fmtPct(slice.totalGainPct)}</div>
+                        <div className="tabular-nums text-2xs md:text-xs opacity-75">{fmtPct(slice.totalGainPct)}</div>
                       </td>
                     </tr>
                   );

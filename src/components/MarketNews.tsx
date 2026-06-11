@@ -132,7 +132,7 @@ export default function MarketNews({ lang, controls }: Props) {
                     {article.summary}
                   </p>
                 )}
-                <p className="text-[11px] text-secondary mt-auto pt-0.5">
+                <p className="text-xs text-secondary mt-auto pt-0.5">
                   {article.publisher} · {timeAgo(article.pubDate)}
                 </p>
               </a>

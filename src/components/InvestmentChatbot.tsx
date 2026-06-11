@@ -51,10 +51,10 @@ function inlineBold(text: string): React.ReactNode {
       return <strong key={i} className="font-semibold text-primary">{part.slice(2, -2)}</strong>;
     }
     if (/^\$[\d,]+(?:\.\d+)?[KMBkmb]?$/.test(part)) {
-      return <span key={i} style={{ color: '#10B981' }}>{part}</span>;
+      return <span key={i} className="text-gain">{part}</span>;
     }
     if (/^[+-]?\d+(?:\.\d+)?%$/.test(part)) {
-      return <span key={i} style={{ color: '#F59E0B' }}>{part}</span>;
+      return <span key={i} style={{ color: '#FF9500' }}>{part}</span>;
     }
     if (/^[A-Z]{2,5}(?:-[A-Z])?$/.test(part) && !TICKER_EXCLUDE.has(part)) {
       return <span key={i} style={{ color: '#0071E3' }}>{part}</span>;
@@ -82,7 +82,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
     }
     if (line.startsWith('## ')) {
       elements.push(
-        <p key={key++} className="text-[11px] font-bold uppercase tracking-wide text-secondary mt-3 mb-0.5 border-t border-border pt-2">
+        <p key={key++} className="text-xs font-bold uppercase tracking-wide text-secondary mt-3 mb-0.5 border-t border-border pt-2">
           {line.slice(3)}
         </p>,
       );
@@ -90,7 +90,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
     }
     if (line.startsWith('### ')) {
       elements.push(
-        <p key={key++} className="text-[11px] font-semibold uppercase tracking-wide text-secondary mt-2 mb-0.5">
+        <p key={key++} className="text-xs font-semibold uppercase tracking-wide text-secondary mt-2 mb-0.5">
           {line.slice(4)}
         </p>,
       );
@@ -207,7 +207,7 @@ export default function InvestmentChatbot({ holdings, lang }: Props) {
               </div>
               <div>
                 <p className="text-xs font-semibold text-primary leading-none">Investment Advisor</p>
-                <p className="text-[10px] mt-0.5" style={{ color: hasPortfolio ? '#0071E3' : 'var(--color-secondary)' }}>
+                <p className="text-2xs mt-0.5" style={{ color: hasPortfolio ? '#0071E3' : 'var(--color-secondary)' }}>
                   {hasPortfolio ? `Portfolio-aware · ${holdings.length} holdings` : 'Ask any investment question'}
                   {' · '}
                   <span style={{ color: 'var(--color-secondary)' }}>{lang === 'zh-TW' ? '繁中' : 'EN'}</span>
@@ -275,7 +275,7 @@ export default function InvestmentChatbot({ holdings, lang }: Props) {
                 </div>
                 {hasPortfolio && (
                   <div
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-2xs font-medium"
                     style={{ backgroundColor: 'rgba(0,113,227,0.08)', color: '#0071E3' }}
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -399,7 +399,7 @@ export default function InvestmentChatbot({ holdings, lang }: Props) {
                 <button
                   onClick={() => send(input)}
                   disabled={!input.trim()}
-                  className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-30"
+                  className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
                   style={{ backgroundColor: '#0071E3', color: '#fff' }}
                   title="Send (Enter)"
                 >
@@ -409,7 +409,7 @@ export default function InvestmentChatbot({ holdings, lang }: Props) {
                 </button>
               )}
             </div>
-            <p className="text-[10px] text-secondary text-center mt-1.5">Enter to send · Shift+Enter for newline</p>
+            <p className="text-2xs text-secondary text-center mt-1.5">Enter to send · Shift+Enter for newline</p>
           </div>
         </div>
       )}

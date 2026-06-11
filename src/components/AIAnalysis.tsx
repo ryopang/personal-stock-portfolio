@@ -75,7 +75,7 @@ function renderMarkdown(text: string) {
         elements.push(
           <div key={key++} className="flex items-baseline gap-2 text-sm leading-relaxed">
             <span className="shrink-0 font-bold privacy-blur" style={{ color: '#0071E3' }}>{ticker}</span>
-            <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${bg} ${textColor}`}>{label}</span>
+            <span className={`shrink-0 text-2xs font-semibold px-1.5 py-0.5 rounded ${bg} ${textColor}`}>{label}</span>
             <span className="text-primary">{inlineBold(rest.replace(/^\s*[—–-]\s*/, ''))}</span>
           </div>,
         );
@@ -233,7 +233,7 @@ export default function AIAnalysis({ holdings, lang }: Props) {
             AI Analysis
           </p>
           {generatedAt && status !== 'streaming' && (
-            <span className="text-[10px] text-secondary opacity-60">
+            <span className="text-2xs text-secondary opacity-60">
               {formatAge(generatedAt)}
             </span>
           )}

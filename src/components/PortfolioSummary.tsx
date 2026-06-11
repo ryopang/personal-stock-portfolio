@@ -106,16 +106,15 @@ export default function PortfolioSummary({
       {/* Total portfolio value */}
       <div className="mb-3">
         <p
-          className="text-2xl md:text-4xl font-bold tabular-nums tracking-tight flex items-center gap-2 privacy-hide"
-          style={{
-            color: hidden
-              ? '#6E6E73'
+          className={`text-2xl md:text-4xl font-bold tabular-nums tracking-tight flex items-center gap-2 privacy-hide ${
+            hidden
+              ? 'text-secondary'
               : totals.dailyChange > 0
-              ? '#34C759'
+              ? 'text-gain'
               : totals.dailyChange < 0
-              ? '#FF3B30'
-              : '#1D1D1F',
-          }}
+              ? 'text-loss'
+              : 'text-primary'
+          }`}
         >
           {hidden ? '••••••' : formatCurrencyWhole(totals.totalValue)}
           {!hidden && totals.dailyChange > 0 && (
@@ -148,7 +147,7 @@ export default function PortfolioSummary({
                   onClick={() => onMoverFilter(moverFilter === 'gainers' ? null : 'gainers')}
                   aria-pressed={moverFilter === 'gainers'}
                   aria-label="Filter to gainers"
-                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] font-semibold tabular-nums transition-all"
+                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-2xs font-semibold tabular-nums transition-all"
                   style={{
                     backgroundColor: moverFilter === 'gainers' ? '#34C759' : 'rgba(52,199,89,0.12)',
                     color: moverFilter === 'gainers' ? '#fff' : '#34C759',
@@ -164,7 +163,7 @@ export default function PortfolioSummary({
                   onClick={() => onMoverFilter(moverFilter === 'losers' ? null : 'losers')}
                   aria-pressed={moverFilter === 'losers'}
                   aria-label="Filter to losers"
-                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] font-semibold tabular-nums transition-all"
+                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-2xs font-semibold tabular-nums transition-all"
                   style={{
                     backgroundColor: moverFilter === 'losers' ? '#FF3B30' : 'rgba(255,59,48,0.12)',
                     color: moverFilter === 'losers' ? '#fff' : '#FF3B30',

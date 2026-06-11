@@ -257,7 +257,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                   {tab.label}
                   {tab.value !== 'all' && typeCounts[tab.value] != null && (
                     <span
-                      className="ml-1.5 text-[10px] tabular-nums font-semibold px-1 py-px rounded-full leading-none"
+                      className="ml-1.5 text-2xs tabular-nums font-semibold px-1 py-px rounded-full leading-none"
                       style={{
                         backgroundColor: activeTab === tab.value ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-secondary)',
                         color: activeTab === tab.value ? 'inherit' : 'var(--color-secondary)',
@@ -291,7 +291,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                       {industry}
                     </span>
                     <span
-                      className="tabular-nums min-w-[16px] text-center px-1 py-px rounded-full leading-none text-[10px] font-semibold"
+                      className="tabular-nums min-w-[16px] text-center px-1 py-px rounded-full leading-none text-2xs font-semibold"
                       style={{
                         backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'var(--color-primary)',
                         color: isActive ? '#fff' : 'var(--color-surface)',
@@ -330,7 +330,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                             aria-pressed={alertFilter}
                             aria-label="Show only movers over 5%"
                             title="Show only movers >5%"
-                            className={`inline-flex items-center justify-center w-5 h-5 rounded text-[10px] leading-none transition-colors shrink-0 ${
+                            className={`inline-flex items-center justify-center w-5 h-5 rounded text-2xs leading-none transition-colors shrink-0 ${
                               alertFilter
                                 ? 'bg-primary text-surface'
                                 : 'text-secondary hover:text-primary hover:bg-surface-secondary'

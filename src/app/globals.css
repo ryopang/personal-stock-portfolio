@@ -22,6 +22,7 @@
   --font-family-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
     "Helvetica Neue", Arial, sans-serif;
   --font-family-mono: "SF Mono", "Monaco", "Menlo", "Courier New", monospace;
+  --text-2xs: 0.625rem;
 }
 
 /* Explicit CSS custom properties for runtime theming (var() usage, dark mode) */
@@ -94,10 +95,6 @@ html[data-theme="dark"] .card {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
-html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
-  background-color: #48484A;
-}
-
 html[data-theme="dark"] .input {
   color-scheme: dark;
 }
@@ -157,7 +154,7 @@ html[data-theme="dark"] .input {
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background-color: #E5E5EA;
+    background-color: var(--color-border);
   }
 
   .btn-secondary:disabled {
@@ -195,7 +192,7 @@ html[data-theme="dark"] .input {
   }
 
   .input:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
   }
 
