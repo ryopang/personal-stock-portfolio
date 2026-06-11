@@ -10,6 +10,8 @@ import AddHoldingModal from './AddHoldingModal';
 import CSVImportModal from './CSVImportModal';
 import HistoricalImportModal from './HistoricalImportModal';
 import MacroContextModal from './MacroContextModal';
+import AdminMenu from './AdminMenu';
+import ClearAllModal from './ClearAllModal';
 import EmptyState from './EmptyState';
 import ChartsView from './ChartsView';
 import AnalysisTab from './AnalysisTab';
@@ -38,29 +40,10 @@ export default function Dashboard({ initialHoldings }: Props) {
   const [darkMode, setDarkMode] = useState(false);
   const [privacyMode, setPrivacyMode] = useState(false);
   const [clearModalOpen, setClearModalOpen] = useState(false);
-  const [clearConfirmText, setClearConfirmText] = useState('');
   const [activeView, setActiveView] = useState<'portfolio' | 'charts' | 'analysis'>('portfolio');
   const [moverFilter, setMoverFilter] = useState<'gainers' | 'losers' | null>(null);
   const [lang, setLang] = useState<'en' | 'zh-TW'>('zh-TW');
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [gateEnabled, setGateEnabled] = useState(() =>
-    typeof window !== 'undefined'
-      ? localStorage.getItem('portfolio_gate_disabled') !== 'true'
-      : true
-  );
-  const adminRef = useRef<HTMLDivElement>(null);
   const stickyBandRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!adminOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (adminRef.current && !adminRef.current.contains(e.target as Node)) {
-        setAdminOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [adminOpen]);
 
   useEffect(() => {
     const el = stickyBandRef.current;
@@ -131,7 +114,6 @@ export default function Dashboard({ initialHoldings }: Props) {
   const handleClearAll = useCallback(async () => {
     clearHoldingsStore();
     setClearModalOpen(false);
-    setClearConfirmText('');
     try {
       const res = await fetch('/api/holdings', { method: 'DELETE' });
       if (!res.ok) throw new Error('Clear failed');
@@ -260,102 +242,14 @@ export default function Dashboard({ initialHoldings }: Props) {
               )}
             </button>
             {/* Admin dropdown */}
-            <div ref={adminRef} className="relative">
-              <button
-                onClick={() => setAdminOpen((v) => !v)}
-                className="btn-secondary flex items-center gap-1.5"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <span>Admin</span>
-                <svg className={`w-3.5 h-3.5 transition-transform ${adminOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {adminOpen && (
-                <div
-                  className="absolute right-0 mt-1.5 w-48 rounded-xl shadow-lg py-1 z-50"
-                  style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                >
-                  <button
-                    onClick={() => { setAdminOpen(false); handleAdd(); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
-                    style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
-                  >
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                    Add holding
-                  </button>
-                  <button
-                    onClick={() => { setAdminOpen(false); setCSVImportOpen(true); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
-                    style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
-                  >
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                    </svg>
-                    Import CSV
-                  </button>
-                  <button
-                    onClick={() => { setAdminOpen(false); setHistoricalImportOpen(true); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
-                    style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
-                  >
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Import history
-                  </button>
-                  <button
-                    onClick={() => { setAdminOpen(false); setMacroContextOpen(true); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
-                    style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
-                  >
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                    </svg>
-                    Edit macro context
-                  </button>
-                  <div className="my-1 border-t" style={{ borderColor: 'var(--color-border)' }} />
-                  <button
-                    onClick={() => {
-                      const next = !gateEnabled;
-                      setGateEnabled(next);
-                      if (next) {
-                        localStorage.removeItem('portfolio_gate_disabled');
-                      } else {
-                        localStorage.setItem('portfolio_gate_disabled', 'true');
-                      }
-                    }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
-                    style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
-                  >
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      {gateEnabled
-                        ? <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                        : <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                      }
-                    </svg>
-                    {gateEnabled ? 'Disable password gate' : 'Enable password gate'}
-                  </button>
-                  {holdings.length > 0 && (
-                    <>
-                      <div className="my-1 border-t" style={{ borderColor: 'var(--color-border)' }} />
-                      <button
-                        onClick={() => { setAdminOpen(false); setClearConfirmText(''); setClearModalOpen(true); }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
-                        style={{ color: 'var(--color-loss)', touchAction: 'manipulation' }}
-                      >
-                        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Clear all
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+            <AdminMenu
+              onAdd={handleAdd}
+              onImportCSV={() => setCSVImportOpen(true)}
+              onImportHistory={() => setHistoricalImportOpen(true)}
+              onEditMacroContext={() => setMacroContextOpen(true)}
+              holdingsCount={holdings.length}
+              onOpenClearModal={() => setClearModalOpen(true)}
+            />
           </div>
         </div>
       </header>
@@ -477,61 +371,11 @@ export default function Dashboard({ initialHoldings }: Props) {
 
       {/* Clear all confirmation modal */}
       {clearModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setClearModalOpen(false)} />
-          <div
-            className="relative w-full max-w-sm mx-4 rounded-2xl shadow-2xl p-6 space-y-4"
-            style={{ backgroundColor: 'var(--color-surface)' }}
-          >
-            {/* Warning icon */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-loss/15 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 text-loss" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-base font-semibold" style={{ color: 'var(--color-primary)' }}>Delete all holdings?</h2>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--color-secondary)' }}>This will permanently remove all {holdings.length} holdings. This cannot be undone.</p>
-              </div>
-            </div>
-
-            {/* Type DELETE */}
-            <div>
-              <label className="label">Type <span className="font-mono font-bold text-loss">DELETE</span> to confirm</label>
-              <input
-                type="text"
-                value={clearConfirmText}
-                onChange={(e) => setClearConfirmText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && clearConfirmText === 'DELETE') handleClearAll();
-                  if (e.key === 'Escape') setClearModalOpen(false);
-                }}
-                placeholder="DELETE"
-                autoFocus
-                className="input"
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-3 pt-1">
-              <button
-                onClick={() => setClearModalOpen(false)}
-                className="flex-1 btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleClearAll}
-                disabled={clearConfirmText !== 'DELETE'}
-                className="flex-1 btn-primary"
-                style={{ backgroundColor: clearConfirmText === 'DELETE' ? 'var(--color-loss)' : undefined }}
-              >
-                Delete all
-              </button>
-            </div>
-          </div>
-        </div>
+        <ClearAllModal
+          holdingsCount={holdings.length}
+          onClose={() => setClearModalOpen(false)}
+          onConfirm={handleClearAll}
+        />
       )}
     </div>
   );

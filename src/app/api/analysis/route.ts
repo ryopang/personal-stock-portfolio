@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { streamText } from 'ai';
 import redis from '@/lib/redis';
-import { resolveProvider, type ProviderKey } from '@/lib/ai-providers';
+import { resolveProvider } from '@/lib/ai-providers';
+import { analysisRequestSchema } from '@/lib/schemas';
 import { aiRatelimit, clientIp } from '@/lib/ratelimit';
 import { getMacroContext, formatMacroSection } from '@/lib/macro-context';
 import { getPortfolioWithMetrics, getBenchmarkReturns } from '@/lib/portfolio-server';
@@ -32,11 +33,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  let lang: string = 'en';
-  let providerKey: ProviderKey = 'gemini';
-
+  let lang: 'en' | 'zh-TW';
+  let providerKey: string;
   try {
-    ({ lang, provider: providerKey } = await req.json());
+    ({ lang, provider: providerKey } = analysisRequestSchema.parse(await req.json()));
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }

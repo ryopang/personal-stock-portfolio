@@ -211,7 +211,7 @@ export function buildAnalysisPrompt({
 
 You are analyzing my actual investment portfolio. Use the exact figures below â€” do not invent or estimate data that is provided.
 
-## MY PORTFOLIO (as of ${new Date().toISOString().slice(0, 10)})
+## MY PORTFOLIO (as of ${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())})
 
 **Total Value:** $${totalValue.toFixed(2)}
 **Total Cost Basis:** $${totalCost.toFixed(2)}
@@ -219,7 +219,7 @@ You are analyzing my actual investment portfolio. Use the exact figures below â€
 
 ${buildHoldingsTable(holdings, totalValue)}
 ${benchmark ? `
-## BENCHMARK (as of ${new Date().toISOString().slice(0, 10)})
+## BENCHMARK (as of ${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())})
 
 | Index | YTD Return | 1-Year Return |
 |-------|-----------|---------------|
