@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import yahooFinance from '@/lib/yahoo';
 import { inferAssetType } from '@/lib/crypto-symbols';
+import { searchQuerySchema } from '@/lib/schemas';
 import type { SearchResult } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -8,10 +9,11 @@ export const dynamic = 'force-dynamic';
 const ALLOWED_QUOTE_TYPES = new Set(['EQUITY', 'ETF', 'MUTUALFUND', 'CRYPTOCURRENCY']);
 
 export async function GET(req: NextRequest) {
-  const q = req.nextUrl.searchParams.get('q')?.trim();
-  if (!q || q.length < 1) {
+  const parsed = searchQuerySchema.safeParse({ q: req.nextUrl.searchParams.get('q') ?? '' });
+  if (!parsed.success) {
     return NextResponse.json({ results: [] });
   }
+  const { q } = parsed.data;
 
   try {
     // Use autoc (autocomplete) for symbol lookup — it returns cleaner results

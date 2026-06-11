@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { convertToModelMessages, streamText, type UIMessage } from 'ai';
-import { resolveProvider, type ProviderKey } from '@/lib/ai-providers';
+import { resolveProvider } from '@/lib/ai-providers';
+import { chatRequestSchema, firstIssue } from '@/lib/schemas';
 import { aiRatelimit, clientIp } from '@/lib/ratelimit';
 import { getMacroContext, formatMacroSection } from '@/lib/macro-context';
 import { getPortfolioWithMetrics } from '@/lib/portfolio-server';
@@ -10,19 +11,20 @@ import { CHAT_SYSTEM_PROMPT, buildPortfolioContext } from '@/lib/prompts';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  let messages: UIMessage[];
-  let providerKey: ProviderKey = 'gemini';
-  let lang: 'en' | 'zh-TW' = 'en';
-
+  let body: unknown;
   try {
-    ({ messages, provider: providerKey, lang } = await req.json());
+    body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  if (!messages?.length) {
-    return NextResponse.json({ error: 'No messages provided.' }, { status: 400 });
+  const parsed = chatRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: firstIssue(parsed.error) }, { status: 400 });
   }
+  const { provider: providerKey, lang } = parsed.data;
+  // Deep per-part validation happens in convertToModelMessages below
+  const messages = parsed.data.messages as unknown as UIMessage[];
 
   const { success } = await aiRatelimit.limit(clientIp(req));
   if (!success) {

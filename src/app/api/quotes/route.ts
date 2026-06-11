@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import yahooFinance from '@/lib/yahoo';
 import { mapYahooQuote } from '@/lib/portfolio-server';
+import { symbolsParamSchema, firstIssue } from '@/lib/schemas';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,14 +11,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'symbols param required' }, { status: 400 });
   }
 
-  const symbols = symbolsParam
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  if (symbols.length === 0) {
-    return NextResponse.json({ quotes: [] });
+  const parsed = symbolsParamSchema.safeParse(symbolsParam);
+  if (!parsed.success) {
+    return NextResponse.json({ error: firstIssue(parsed.error) }, { status: 400 });
   }
+  const symbols = parsed.data;
 
   try {
     const rawResults = await yahooFinance.quote(symbols);

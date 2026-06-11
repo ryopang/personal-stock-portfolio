@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toYahooSymbol } from '@/lib/crypto-symbols';
 import type { Holding, Quote } from '@/lib/types';
 
@@ -29,15 +29,9 @@ export function useQuotes(holdings: Holding[]): UseQuotesReturn {
       revalidateOnReconnect: false,
       refreshInterval: 0, // Manual refresh only
       dedupingInterval: 5000,
+      onSuccess: () => setLastUpdated(new Date()),
     }
   );
-
-  // Update lastUpdated whenever fresh data arrives
-  useEffect(() => {
-    if (data?.quotes) {
-      setLastUpdated(new Date());
-    }
-  }, [data]);
 
   const refresh = async () => {
     await mutate();

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import yahooFinance from '@/lib/yahoo';
+import { historyParamsSchema, firstIssue } from '@/lib/schemas';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,14 +35,17 @@ export interface HistoryResponse {
 }
 
 export async function GET(req: NextRequest) {
-  const symbol = req.nextUrl.searchParams.get('symbol');
-  const range = req.nextUrl.searchParams.get('range') ?? '1Y';
-  // Optional override: fetch from a specific start date (used for benchmark overlays)
-  const customPeriod1 = req.nextUrl.searchParams.get('period1') ?? null;
-
-  if (!symbol) {
-    return NextResponse.json({ error: 'symbol required' }, { status: 400 });
+  const parsed = historyParamsSchema.safeParse({
+    symbol: req.nextUrl.searchParams.get('symbol') ?? undefined,
+    range: req.nextUrl.searchParams.get('range') ?? undefined,
+    // Optional override: fetch from a specific start date (used for benchmark overlays)
+    period1: req.nextUrl.searchParams.get('period1'),
+  });
+  if (!parsed.success) {
+    return NextResponse.json({ error: firstIssue(parsed.error) }, { status: 400 });
   }
+  const { symbol, range } = parsed.data;
+  const customPeriod1 = parsed.data.period1 ?? null;
 
   const today = new Date().toISOString().slice(0, 10);
 

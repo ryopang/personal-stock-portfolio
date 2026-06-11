@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import yahooFinance from '@/lib/yahoo';
 import { getHoldings, upsertHolding, clearHoldings } from '@/lib/holdings-service';
 import { toYahooSymbol } from '@/lib/crypto-symbols';
-import type { Holding, AssetType } from '@/lib/types';
+import { holdingCreateSchema, firstIssue } from '@/lib/schemas';
+import type { Holding } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,25 +19,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { symbol, type, quantity, costBasis, purchaseDate } = body as {
-      symbol: string;
-      type: AssetType;
-      quantity: number;
-      costBasis: number;
-      purchaseDate: string;
-    };
-
-    // Validate required fields
-    if (!symbol || !type || quantity == null || costBasis == null || !purchaseDate) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    const parsed = holdingCreateSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: firstIssue(parsed.error) }, { status: 400 });
     }
-    if (quantity <= 0) {
-      return NextResponse.json({ error: 'Quantity must be greater than 0' }, { status: 400 });
-    }
-    if (costBasis <= 0) {
-      return NextResponse.json({ error: 'Cost basis must be greater than 0' }, { status: 400 });
-    }
+    const { symbol, type, quantity, costBasis, purchaseDate, industry } = parsed.data;
 
     // Validate symbol by fetching a quote — also grabs the display name
     const yahooSymbol = toYahooSymbol(symbol, type);
@@ -56,8 +43,9 @@ export async function POST(req: NextRequest) {
       symbol: symbol.toUpperCase(),
       name,
       type,
-      quantity: Number(quantity),
-      costBasis: Number(costBasis),
+      ...(industry ? { industry } : {}),
+      quantity,
+      costBasis,
       purchaseDate,
       addedAt: new Date().toISOString(),
     };
