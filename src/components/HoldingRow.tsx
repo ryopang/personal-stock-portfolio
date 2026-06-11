@@ -12,20 +12,20 @@ function FiftyTwoWeekBar({ low, high, current }: { low: number; high: number; cu
   return (
     <div
       className="flex flex-col items-center gap-1"
-      title={`52W Low: ${formatCurrency(low)}  ·  52W High: ${formatCurrency(high)}  ·  ${rawPct.toFixed(1)}% of range`}
+      title={`52W: ${formatCurrency(low)} – ${formatCurrency(high)}  ·  ${rawPct.toFixed(1)}% of range`}
     >
-      <div className="relative w-16 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
+      <div className="relative w-20 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
         <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, backgroundColor: 'var(--color-accent)' }} />
         <div
           className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full"
           style={{ left: `calc(${pct}% - 5px)`, backgroundColor: 'var(--color-accent)', boxShadow: '0 0 0 2px var(--color-surface)' }}
         />
       </div>
-      <div className="flex justify-between w-16">
-        <span className="text-2xs tabular-nums text-secondary">
+      <div className="flex justify-between w-20" style={{ fontSize: '0.5rem', lineHeight: 1 }}>
+        <span className="tabular-nums text-secondary">
           {low >= 1000 ? formatCurrencyK(low) : formatCurrencyWhole(low)}
         </span>
-        <span className="text-2xs tabular-nums text-secondary">
+        <span className="tabular-nums text-secondary">
           {high >= 1000 ? formatCurrencyK(high) : formatCurrencyWhole(high)}
         </span>
       </div>
@@ -60,7 +60,7 @@ export function HoldingTableRow({ holding, onEdit, onDelete, isChild }: Props) {
 
       {/* Symbol + Name + hover actions */}
       <td className="py-2 pl-3 pr-2">
-        <div className="flex items-center justify-start gap-1.5">
+        <div className="flex items-center justify-start gap-2.5">
           {/* Fixed-width icon slot */}
           <div className="w-5 h-5 flex items-center justify-center shrink-0">
             {!isChild && holding.dailyChangePercent > 5 && (
@@ -166,7 +166,7 @@ export function GroupSummaryTableRow({ lotCount, aggregate: holding, expanded, o
     >
       {/* Symbol + lot count + expand toggle */}
       <td className="py-2 pl-3 pr-2">
-        <div className="flex items-center justify-start gap-1.5">
+        <div className="flex items-center justify-start gap-2.5">
           {/* Fixed-width icon slot */}
           <div className="w-5 h-5 flex items-center justify-center shrink-0">
             {holding.dailyChangePercent > 5 && (
@@ -195,9 +195,6 @@ export function GroupSummaryTableRow({ lotCount, aggregate: holding, expanded, o
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
             </svg>
           </button>
-          <span className="text-2xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums leading-none bg-surface-secondary text-secondary">
-            {lotCount}
-          </span>
         </div>
       </td>
 
@@ -286,9 +283,6 @@ export function GroupCard({
               </svg>
             )}
             <span className="font-bold text-primary">{holding.symbol.replace(/-USD$/, '')}</span>
-            <span className="text-2xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums leading-none bg-surface-secondary text-secondary">
-              {lotCount}
-            </span>
           </div>
           {holding.industry && (
             <p className="text-xs text-secondary mt-0.5">{holding.industry}</p>
@@ -343,10 +337,7 @@ export function GroupCard({
             />
           </div>
           {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null && (
-            <div className="w-16 shrink-0">
-              <div className="mb-1.5">
-                <span className="text-2xs text-secondary">52W</span>
-              </div>
+            <div className="shrink-0 flex items-center">
               <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
             </div>
           )}
@@ -445,10 +436,7 @@ export function HoldingCard({ holding, onEdit, onDelete }: Props) {
             />
           </div>
           {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null && (
-            <div className="w-16 shrink-0">
-              <div className="mb-1.5">
-                <span className="text-2xs text-secondary">52W</span>
-              </div>
+            <div className="shrink-0 flex items-center">
               <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
             </div>
           )}

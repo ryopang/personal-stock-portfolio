@@ -212,7 +212,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
     return Object.entries(counts).sort(([, a], [, b]) => b - a);
   }, [filtered]);
 
-  const showFilterBar = availableTabs.length > 2 || (industryCounts.length > 0 && filtered.length > 0);
+  const showFilterBar = holdings.length > 0;
 
   // Keep --filter-bar-height in sync so the sticky thead can sit below the filter bar
   useEffect(() => {
@@ -271,9 +271,21 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
             </div>
           )}
 
-          {/* Industry chips — scrollable on mobile, right-aligned on desktop */}
-          {industryCounts.length > 0 && filtered.length > 0 && (
-            <div className="flex items-center gap-1 overflow-x-auto md:ml-auto" style={{ scrollbarWidth: 'none' }}>
+          {/* Mover alert filter + industry chips — right-aligned on desktop */}
+          <div className="flex items-center gap-1 overflow-x-auto md:ml-auto" style={{ scrollbarWidth: 'none' }}>
+            <button
+              onClick={() => setAlertFilter((f) => !f)}
+              aria-pressed={alertFilter}
+              aria-label="Show only movers over 5%"
+              className={`inline-flex items-center shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                alertFilter ? 'bg-primary text-surface' : 'text-secondary hover:text-primary hover:bg-surface-secondary'
+              }`}
+              style={{ touchAction: 'manipulation' }}
+            >
+              👀 Movers
+            </button>
+            {industryCounts.length > 0 && filtered.length > 0 && (
+          <>
               {industryCounts.map(([industry, count]) => {
                 const isActive = activeIndustry === industry;
                 return (
@@ -302,8 +314,9 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                   </button>
                 );
               })}
-            </div>
+            </>
           )}
+          </div>
         </div>
       )}
 
@@ -323,40 +336,14 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                       aria-sort={sortKey === h.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
                       className={`py-2.5 text-xs font-semibold text-secondary uppercase tracking-wide ${h.className}`}
                     >
-                      {h.key === 'symbol' ? (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => setAlertFilter((f) => !f)}
-                            aria-pressed={alertFilter}
-                            aria-label="Show only movers over 5%"
-                            title="Show only movers >5%"
-                            className={`inline-flex items-center justify-center w-5 h-5 rounded text-2xs leading-none transition-colors shrink-0 ${
-                              alertFilter
-                                ? 'bg-primary text-surface'
-                                : 'text-secondary hover:text-primary hover:bg-surface-secondary'
-                            }`}
-                          >
-                            👀
-                          </button>
-                          <button
-                            onClick={() => toggleSort(h.key)}
-                            aria-label={`Sort by ${h.label}`}
-                            className="inline-flex items-center gap-1 hover:text-primary transition-colors"
-                          >
-                            {h.label}
-                            <SortIcon active={sortKey === h.key} dir={sortDir} />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => toggleSort(h.key)}
-                          aria-label={`Sort by ${h.label}`}
-                          className="inline-flex items-center gap-1 hover:text-primary transition-colors"
-                        >
-                          {h.label}
-                          <SortIcon active={sortKey === h.key} dir={sortDir} />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => toggleSort(h.key)}
+                        aria-label={`Sort by ${h.label}`}
+                        className="inline-flex items-center gap-1 hover:text-primary transition-colors"
+                      >
+                        {h.label}
+                        <SortIcon active={sortKey === h.key} dir={sortDir} />
+                      </button>
                     </th>
                   ))}
                 </tr>
