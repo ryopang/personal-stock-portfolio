@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import SymbolSearch from './SymbolSearch';
+import { useModalBehavior } from '@/hooks/useModalBehavior';
 import type { HoldingWithMetrics, AssetType } from '@/lib/types';
 
 interface Props {
@@ -40,11 +41,7 @@ export default function AddHoldingModal({ holding, onClose, onSave }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Prevent scroll behind modal
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
+  useModalBehavior(onClose);
 
   const validate = () => {
     const errs: Record<string, string> = {};
@@ -89,6 +86,7 @@ export default function AddHoldingModal({ holding, onClose, onSave }: Props) {
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="add-holding-title"
     >
       {/* Backdrop */}
       <div
@@ -100,7 +98,7 @@ export default function AddHoldingModal({ holding, onClose, onSave }: Props) {
       <div className="relative w-full sm:max-w-md bg-surface sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-primary">
+          <h2 id="add-holding-title" className="text-lg font-semibold text-primary">
             {isEdit ? 'Edit Holding' : 'Add Holding'}
           </h2>
           <button
@@ -159,7 +157,7 @@ export default function AddHoldingModal({ holding, onClose, onSave }: Props) {
                       type === t.value
                         ? 'bg-primary text-surface'
                         : 'bg-surface-secondary text-secondary hover:text-primary'
-                    } disabled:opacity-60 disabled:cursor-not-allowed`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                     style={{ touchAction: 'manipulation' }}
                   >
                     {t.label}
@@ -186,6 +184,7 @@ export default function AddHoldingModal({ holding, onClose, onSave }: Props) {
                 min="0"
                 step="any"
                 disabled={isSubmitting}
+                autoFocus={isEdit}
                 className="input w-full"
               />
               {errors.quantity && <p className="error-text">{errors.quantity}</p>}

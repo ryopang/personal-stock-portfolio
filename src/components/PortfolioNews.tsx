@@ -146,7 +146,7 @@ export default function PortfolioNews({ holdings, lang, filterSymbol, onFilterCh
         <select
           value={filterSymbol}
           onChange={(e) => onFilterChange(e.target.value)}
-          className="text-xs font-medium rounded-lg border border-border bg-surface text-primary px-2.5 py-1 outline-none cursor-pointer transition-colors"
+          className="text-xs font-medium rounded-lg border border-border bg-surface text-primary px-2.5 py-1 cursor-pointer transition-colors"
         >
           <option value="all">All Holdings</option>
           {[...new Map(holdings.map((h) => [h.symbol, h])).values()]
@@ -185,7 +185,7 @@ export default function PortfolioNews({ holdings, lang, filterSymbol, onFilterCh
                   </p>
                 )}
 
-                <div className="flex items-center gap-1.5 text-[11px] text-secondary">
+                <div className="flex items-center gap-1.5 text-xs text-secondary">
                   <span className="font-semibold uppercase text-accent">
                     {displaySymbol(article.symbol)}
                   </span>
@@ -206,7 +206,7 @@ export default function PortfolioNews({ holdings, lang, filterSymbol, onFilterCh
                   </div>
                 )}
                 {!hasMore && articles.length > 0 && (
-                  <p className="text-center text-[11px] text-secondary py-2">
+                  <p className="text-center text-xs text-secondary py-2">
                     All articles loaded
                   </p>
                 )}

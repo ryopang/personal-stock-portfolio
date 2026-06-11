@@ -4,6 +4,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { mutate } from 'swr';
 import { usePortfolioStore } from '@/store/portfolioStore';
 import { usePortfolio } from '@/hooks/usePortfolio';
+import { useModalBehavior } from '@/hooks/useModalBehavior';
+import { useToastStore } from '@/store/toastStore';
+import Toasts from './Toasts';
+import ConfirmModal from './ConfirmModal';
 import PortfolioSummary from './PortfolioSummary';
 import HoldingsSection from './HoldingsSection';
 import AddHoldingModal from './AddHoldingModal';
@@ -39,6 +43,8 @@ export default function Dashboard({ initialHoldings }: Props) {
   const [privacyMode, setPrivacyMode] = useState(false);
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [clearConfirmText, setClearConfirmText] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const pushToast = useToastStore((s) => s.push);
   const [activeView, setActiveView] = useState<'portfolio' | 'charts' | 'analysis'>('portfolio');
   const [moverFilter, setMoverFilter] = useState<'gainers' | 'losers' | null>(null);
   const [lang, setLang] = useState<'en' | 'zh-TW'>('zh-TW');
@@ -50,6 +56,8 @@ export default function Dashboard({ initialHoldings }: Props) {
   );
   const adminRef = useRef<HTMLDivElement>(null);
   const stickyBandRef = useRef<HTMLDivElement>(null);
+
+  useModalBehavior(() => { setClearModalOpen(false); setClearConfirmText(''); }, clearModalOpen);
 
   useEffect(() => {
     if (!adminOpen) return;
@@ -113,20 +121,23 @@ export default function Dashboard({ initialHoldings }: Props) {
     setModalOpen(true);
   };
 
-  const handleDelete = useCallback(async (id: string) => {
-    if (!confirm('Remove this holding from your portfolio?')) return;
-    // Optimistic update
+  const handleDelete = useCallback((id: string) => {
+    setDeleteTarget(id);
+  }, []);
+
+  const confirmDelete = useCallback(async (id: string) => {
+    setDeleteTarget(null);
     removeHolding(id);
     try {
       const res = await fetch(`/api/holdings/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
     } catch {
-      // Restore on failure — re-fetch from server
       const res = await fetch('/api/holdings');
       const data = await res.json();
       setHoldings(data.holdings ?? []);
+      pushToast('Failed to delete holding. Your portfolio has been restored.');
     }
-  }, [removeHolding, setHoldings]);
+  }, [removeHolding, setHoldings, pushToast]);
 
   const handleClearAll = useCallback(async () => {
     clearHoldingsStore();
@@ -136,12 +147,12 @@ export default function Dashboard({ initialHoldings }: Props) {
       const res = await fetch('/api/holdings', { method: 'DELETE' });
       if (!res.ok) throw new Error('Clear failed');
     } catch {
-      // Restore on failure
       const res = await fetch('/api/holdings');
       const data = await res.json();
       setHoldings(data.holdings ?? []);
+      pushToast('Failed to clear portfolio. Your holdings have been restored.');
     }
-  }, [clearHoldingsStore, setHoldings]);
+  }, [clearHoldingsStore, setHoldings, pushToast]);
 
   const handleImportComplete = useCallback(async (importedHoldings: Holding[]) => {
     for (const h of importedHoldings) addHolding(h);
@@ -336,7 +347,7 @@ export default function Dashboard({ initialHoldings }: Props) {
                         : <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                       }
                     </svg>
-                    {gateEnabled ? 'Disable password gate' : 'Enable password gate'}
+                    {gateEnabled ? 'Disable password' : 'Enable password'}
                   </button>
                   {holdings.length > 0 && (
                     <>
@@ -369,18 +380,14 @@ export default function Dashboard({ initialHoldings }: Props) {
               <button
                 key={view}
                 onClick={() => setActiveView(view)}
-                className="px-4 py-3 sm:py-2 text-sm font-medium capitalize transition-colors relative"
-                style={{
-                  color: activeView === view ? 'var(--color-primary)' : 'var(--color-secondary)',
-                  touchAction: 'manipulation',
-                }}
+                className={`px-4 py-3 sm:py-2 text-sm font-medium capitalize transition-colors relative ${
+                  activeView === view ? 'text-primary' : 'text-secondary'
+                }`}
+                style={{ touchAction: 'manipulation' }}
               >
                 {view === 'portfolio' ? 'Holdings' : view === 'charts' ? 'Charts' : 'Analysis'}
                 {activeView === view && (
-                  <span
-                    className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-                    style={{ backgroundColor: '#0071E3' }}
-                  />
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-accent" />
                 )}
               </button>
             ))}
@@ -413,8 +420,14 @@ export default function Dashboard({ initialHoldings }: Props) {
       {/* Scrollable content */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-4 space-y-4">
         {error && (
-          <div className="rounded-xl bg-loss/10 border border-loss/20 px-4 py-3 text-sm text-loss">
-            Failed to fetch prices. Check your connection and try refreshing.
+          <div className="rounded-xl bg-loss/10 border border-loss/20 px-4 py-3 text-sm text-loss flex items-center justify-between gap-3">
+            <span>Failed to fetch prices. Check your connection and try refreshing.</span>
+            <button
+              onClick={() => refresh()}
+              className="shrink-0 text-xs font-semibold underline underline-offset-2 hover:no-underline transition-all"
+            >
+              Retry
+            </button>
           </div>
         )}
         {missingQuoteSymbols.length > 0 && (
@@ -434,6 +447,7 @@ export default function Dashboard({ initialHoldings }: Props) {
             onEdit={handleEdit}
             onDelete={handleDelete}
             moverFilter={moverFilter}
+            onClearMoverFilter={() => setMoverFilter(null)}
           />
         ) : activeView === 'charts' ? (
           <ChartsView holdings={holdingsWithMetrics} />
@@ -475,9 +489,24 @@ export default function Dashboard({ initialHoldings }: Props) {
       {/* Investment advisor chatbot */}
       <InvestmentChatbot holdings={holdingsWithMetrics} lang={lang} />
 
+      {/* Delete holding confirmation */}
+      {deleteTarget && (
+        <ConfirmModal
+          title="Remove this holding?"
+          body="This will permanently remove the holding from your portfolio."
+          confirmLabel="Remove"
+          destructive
+          onConfirm={() => confirmDelete(deleteTarget)}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {/* Toast notifications */}
+      <Toasts />
+
       {/* Clear all confirmation modal */}
       {clearModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="clear-all-title">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setClearModalOpen(false)} />
           <div
             className="relative w-full max-w-sm mx-4 rounded-2xl shadow-2xl p-6 space-y-4"
@@ -491,7 +520,7 @@ export default function Dashboard({ initialHoldings }: Props) {
                 </svg>
               </div>
               <div>
-                <h2 className="text-base font-semibold" style={{ color: 'var(--color-primary)' }}>Delete all holdings?</h2>
+                <h2 id="clear-all-title" className="text-base font-semibold" style={{ color: 'var(--color-primary)' }}>Delete all holdings?</h2>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--color-secondary)' }}>This will permanently remove all {holdings.length} holdings. This cannot be undone.</p>
               </div>
             </div>
@@ -505,7 +534,6 @@ export default function Dashboard({ initialHoldings }: Props) {
                 onChange={(e) => setClearConfirmText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && clearConfirmText === 'DELETE') handleClearAll();
-                  if (e.key === 'Escape') setClearModalOpen(false);
                 }}
                 placeholder="DELETE"
                 autoFocus

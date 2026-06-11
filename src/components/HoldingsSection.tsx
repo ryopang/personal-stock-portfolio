@@ -56,6 +56,7 @@ interface Props {
   onEdit: (holding: HoldingWithMetrics) => void;
   onDelete: (id: string) => void;
   moverFilter?: 'gainers' | 'losers' | null;
+  onClearMoverFilter?: () => void;
 }
 
 function computeAggregate(lots: HoldingWithMetrics[]): HoldingWithMetrics {
@@ -78,7 +79,7 @@ function computeAggregate(lots: HoldingWithMetrics[]): HoldingWithMetrics {
   };
 }
 
-export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete, moverFilter }: Props) {
+export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete, moverFilter, onClearMoverFilter }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('all');
   const [activeIndustry, setActiveIndustry] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('symbol');
@@ -211,7 +212,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
     return Object.entries(counts).sort(([, a], [, b]) => b - a);
   }, [filtered]);
 
-  const showFilterBar = availableTabs.length > 2 || (industryCounts.length > 0 && filtered.length > 0);
+  const showFilterBar = holdings.length > 0;
 
   // Keep --filter-bar-height in sync so the sticky thead can sit below the filter bar
   useEffect(() => {
@@ -245,6 +246,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                 <button
                   key={tab.value}
                   onClick={() => { setActiveTab(tab.value); setActiveIndustry(null); }}
+                  aria-pressed={activeTab === tab.value}
                   className={`inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     activeTab === tab.value
                       ? 'bg-primary text-surface'
@@ -255,7 +257,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                   {tab.label}
                   {tab.value !== 'all' && typeCounts[tab.value] != null && (
                     <span
-                      className="ml-1.5 text-[10px] tabular-nums font-semibold px-1 py-px rounded-full leading-none"
+                      className="ml-1.5 text-2xs tabular-nums font-semibold px-1 py-px rounded-full leading-none"
                       style={{
                         backgroundColor: activeTab === tab.value ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-secondary)',
                         color: activeTab === tab.value ? 'inherit' : 'var(--color-secondary)',
@@ -269,15 +271,28 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
             </div>
           )}
 
-          {/* Industry chips — scrollable on mobile, right-aligned on desktop */}
-          {industryCounts.length > 0 && filtered.length > 0 && (
-            <div className="flex items-center gap-1 overflow-x-auto md:ml-auto" style={{ scrollbarWidth: 'none' }}>
+          {/* Mover alert filter + industry chips — right-aligned on desktop */}
+          <div className="flex items-center gap-1 overflow-x-auto md:ml-auto" style={{ scrollbarWidth: 'none' }}>
+            <button
+              onClick={() => setAlertFilter((f) => !f)}
+              aria-pressed={alertFilter}
+              aria-label="Show only movers over 5%"
+              className={`inline-flex items-center shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                alertFilter ? 'bg-primary text-surface' : 'text-secondary hover:text-primary hover:bg-surface-secondary'
+              }`}
+              style={{ touchAction: 'manipulation' }}
+            >
+              👀 Movers
+            </button>
+            {industryCounts.length > 0 && filtered.length > 0 && (
+          <>
               {industryCounts.map(([industry, count]) => {
                 const isActive = activeIndustry === industry;
                 return (
                   <button
                     key={industry}
                     onClick={() => setActiveIndustry(isActive ? null : industry)}
+                    aria-pressed={isActive}
                     className={`inline-flex items-center shrink-0 gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${!isActive ? 'chip-industry' : ''}`}
                     style={{
                       backgroundColor: isActive ? 'var(--color-accent)' : undefined,
@@ -288,7 +303,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                       {industry}
                     </span>
                     <span
-                      className="tabular-nums min-w-[16px] text-center px-1 py-px rounded-full leading-none text-[10px] font-semibold"
+                      className="tabular-nums min-w-[16px] text-center px-1 py-px rounded-full leading-none text-2xs font-semibold"
                       style={{
                         backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'var(--color-primary)',
                         color: isActive ? '#fff' : 'var(--color-surface)',
@@ -299,8 +314,9 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                   </button>
                 );
               })}
-            </div>
+            </>
           )}
+          </div>
         </div>
       )}
 
@@ -317,38 +333,17 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                   {TABLE_HEADERS.map((h) => (
                     <th
                       key={h.label}
+                      aria-sort={sortKey === h.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
                       className={`py-2.5 text-xs font-semibold text-secondary uppercase tracking-wide ${h.className}`}
                     >
-                      {h.key === 'symbol' ? (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => setAlertFilter((f) => !f)}
-                            title="Show only movers >5%"
-                            className={`inline-flex items-center justify-center w-5 h-5 rounded text-[10px] leading-none transition-colors shrink-0 ${
-                              alertFilter
-                                ? 'bg-primary text-surface'
-                                : 'text-secondary hover:text-primary hover:bg-surface-secondary'
-                            }`}
-                          >
-                            👀
-                          </button>
-                          <button
-                            onClick={() => toggleSort(h.key)}
-                            className="inline-flex items-center gap-1 hover:text-primary transition-colors"
-                          >
-                            {h.label}
-                            <SortIcon active={sortKey === h.key} dir={sortDir} />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => toggleSort(h.key)}
-                          className="inline-flex items-center gap-1 hover:text-primary transition-colors"
-                        >
-                          {h.label}
-                          <SortIcon active={sortKey === h.key} dir={sortDir} />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => toggleSort(h.key)}
+                        aria-label={`Sort by ${h.label}`}
+                        className="inline-flex items-center gap-1 hover:text-primary transition-colors"
+                      >
+                        {h.label}
+                        <SortIcon active={sortKey === h.key} dir={sortDir} />
+                      </button>
                     </th>
                   ))}
                 </tr>
@@ -356,10 +351,25 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
               <tbody>
                 {displayHoldings.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-secondary text-sm">
-                      {activeIndustry
-                        ? `No ${activeIndustry === '—' ? 'uncategorized' : activeIndustry} holdings.`
-                        : `No ${activeTab === 'all' ? '' : activeTab} holdings yet.`}
+                    <td colSpan={9} className="py-12 text-center">
+                      <p className="text-secondary text-sm mb-2">
+                        {activeIndustry
+                          ? `No ${activeIndustry === '—' ? 'uncategorized' : activeIndustry} holdings.`
+                          : `No ${activeTab === 'all' ? '' : activeTab} holdings yet.`}
+                      </p>
+                      {(activeIndustry || activeTab !== 'all' || alertFilter || moverFilter) && (
+                        <button
+                          onClick={() => {
+                            setActiveTab('all');
+                            setActiveIndustry(null);
+                            setAlertFilter(false);
+                            onClearMoverFilter?.();
+                          }}
+                          className="text-xs text-accent underline underline-offset-2 hover:no-underline transition-all"
+                        >
+                          Clear filters
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ) : sortedGroups.map(({ lots, aggregate }) =>
@@ -439,10 +449,25 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {displayHoldings.length === 0 ? (
-              <div className="card py-12 text-center text-secondary text-sm">
-                {activeIndustry
-                  ? `No ${activeIndustry === '—' ? 'uncategorized' : activeIndustry} holdings.`
-                  : `No ${activeTab === 'all' ? '' : activeTab} holdings yet.`}
+              <div className="card py-12 text-center">
+                <p className="text-secondary text-sm mb-2">
+                  {activeIndustry
+                    ? `No ${activeIndustry === '—' ? 'uncategorized' : activeIndustry} holdings.`
+                    : `No ${activeTab === 'all' ? '' : activeTab} holdings yet.`}
+                </p>
+                {(activeIndustry || activeTab !== 'all' || alertFilter || moverFilter) && (
+                  <button
+                    onClick={() => {
+                      setActiveTab('all');
+                      setActiveIndustry(null);
+                      setAlertFilter(false);
+                      onClearMoverFilter?.();
+                    }}
+                    className="text-xs text-accent underline underline-offset-2 hover:no-underline transition-all"
+                  >
+                    Clear filters
+                  </button>
+                )}
               </div>
             ) : sortedGroups.map(({ lots, aggregate }) =>
               lots.length === 1 ? (

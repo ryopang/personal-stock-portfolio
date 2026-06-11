@@ -45,18 +45,26 @@ export default function PortfolioSummary({
     return <SummarySkeleton />;
   }
 
+  const valueColor = hidden
+    ? 'text-secondary'
+    : totals.dailyChange > 0
+    ? 'text-gain'
+    : totals.dailyChange < 0
+    ? 'text-loss'
+    : 'text-primary';
+
   return (
-    <div className="card p-4 md:p-6">
-      {/* Header row */}
-      <div className="flex items-center justify-between mb-2">
+    <div className="card p-4 md:p-5">
+      {/* Row 1: label + controls */}
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1">
-          <p className="text-xs font-semibold text-secondary uppercase tracking-widest">
+          <span className="text-xs font-semibold text-secondary uppercase tracking-widest">
             Portfolio Value
-          </p>
+          </span>
           <button
             onClick={() => setHidden(h => !h)}
             className="flex items-center justify-center rounded-lg text-secondary hover:bg-accent/10 active:bg-accent/20 transition-colors"
-            style={{ padding: '0.375rem', touchAction: 'manipulation' }}
+            style={{ padding: '0.25rem', touchAction: 'manipulation' }}
             aria-label={hidden ? 'Show values' : 'Hide values'}
             title={hidden ? 'Show values' : 'Hide values'}
           >
@@ -74,7 +82,7 @@ export default function PortfolioSummary({
         </div>
         <div className="flex items-center gap-2">
           {lastUpdated && (
-            <span className="hidden sm:block text-xs text-tertiary">
+            <span className="text-xs text-tertiary">
               Updated {formatTime(lastUpdated.toISOString())}
             </span>
           )}
@@ -92,131 +100,89 @@ export default function PortfolioSummary({
               stroke="currentColor"
               strokeWidth={2}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
             </svg>
             <span className="hidden sm:inline">{isRefreshing ? 'Refreshing…' : 'Refresh'}</span>
           </button>
         </div>
       </div>
 
-      {/* Total portfolio value */}
-      <div className="mb-3">
-        <p
-          className="text-2xl md:text-4xl font-bold tabular-nums tracking-tight flex items-center gap-2 privacy-hide"
-          style={{
-            color: hidden
-              ? '#6E6E73'
-              : totals.dailyChange > 0
-              ? '#34C759'
-              : totals.dailyChange < 0
-              ? '#FF3B30'
-              : '#1D1D1F',
-          }}
-        >
+      {/* Row 2: portfolio value + daily change on the same baseline */}
+      <div className="flex items-baseline gap-3 flex-wrap mb-4 privacy-hide">
+        <p className={`text-3xl md:text-4xl font-bold tabular-nums tracking-tight ${valueColor}`}>
           {hidden ? '••••••' : formatCurrencyWhole(totals.totalValue)}
-          {!hidden && totals.dailyChange > 0 && (
-            <svg className="w-5 h-5 md:w-8 md:h-8 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
-            </svg>
-          )}
-          {!hidden && totals.dailyChange < 0 && (
-            <svg className="w-5 h-5 md:w-8 md:h-8 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
-            </svg>
-          )}
         </p>
-        {lastUpdated && (
-          <p className="sm:hidden text-xs text-tertiary mt-0.5">
-            Updated {formatTime(lastUpdated.toISOString())}
-          </p>
+        {!hidden && (
+          <PriceChange
+            value={totals.dailyChange}
+            percent={totals.dailyChangePercent}
+            format="both"
+            noDecimals
+            size="md"
+          />
         )}
       </div>
 
-      {/* Metrics row — always 3 columns */}
-      <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border">
-        <div className="text-center min-w-0">
-          {/* Label row: "Today" + mover badges side by side */}
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <span className="text-xs text-secondary">Today</span>
-            {holdings.length > 0 && (
-              <span className="no-privacy flex items-center gap-1">
-                <button
-                  onClick={() => onMoverFilter(moverFilter === 'gainers' ? null : 'gainers')}
-                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] font-semibold tabular-nums transition-all"
-                  style={{
-                    backgroundColor: moverFilter === 'gainers' ? '#34C759' : 'rgba(52,199,89,0.12)',
-                    color: moverFilter === 'gainers' ? '#fff' : '#34C759',
-                    touchAction: 'manipulation',
-                  }}
-                >
-                  <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-                  </svg>
-                  {dayMovers.gainers}
-                </button>
-                <button
-                  onClick={() => onMoverFilter(moverFilter === 'losers' ? null : 'losers')}
-                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] font-semibold tabular-nums transition-all"
-                  style={{
-                    backgroundColor: moverFilter === 'losers' ? '#FF3B30' : 'rgba(255,59,48,0.12)',
-                    color: moverFilter === 'losers' ? '#fff' : '#FF3B30',
-                    touchAction: 'manipulation',
-                  }}
-                >
-                  <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                  {dayMovers.losers}
-                </button>
-              </span>
-            )}
-          </div>
-          {/* Mobile: stack value + percent to avoid overflow */}
-          <div className="md:hidden flex flex-col items-center leading-tight">
-            <PriceChange value={totals.dailyChange} percent={totals.dailyChangePercent} format="currency" noDecimals size="sm" />
-            {!hidden && <PriceChange value={totals.dailyChange} percent={totals.dailyChangePercent} format="percent" size="sm" />}
-          </div>
-          {/* Desktop: inline */}
-          <div className="hidden md:block">
-            <PriceChange value={totals.dailyChange} percent={totals.dailyChangePercent} format={hidden ? 'currency' : 'both'} noDecimals />
-          </div>
-        </div>
-        <div className="text-center min-w-0">
-          <p className="text-xs text-secondary mb-1">
-            <span className="md:hidden">Invested</span>
-            <span className="hidden md:inline">Total invested</span>
-          </p>
+      {/* Row 3: secondary metrics bar */}
+      <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap pt-3 border-t border-border">
+        {/* Invested */}
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-xs text-secondary">Invested</span>
           <span className="text-sm font-semibold text-primary tabular-nums privacy-hide">
-            {hidden ? '••••••' : formatCurrencyWhole(totals.totalCost)}
+            {hidden ? '••••' : formatCurrencyWhole(totals.totalCost)}
           </span>
         </div>
-        <div className="text-center min-w-0">
-          <p className="text-xs text-secondary mb-1">
-            <span className="md:hidden">Total P&amp;L</span>
-            <span className="hidden md:inline">Total gain / loss</span>
-          </p>
+
+        <div className="w-px h-3 bg-border shrink-0" />
+
+        {/* Total P&L */}
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-xs text-secondary">Total P&amp;L</span>
           {hidden ? (
-            <span className="text-sm font-semibold text-secondary tabular-nums">••••••</span>
+            <span className="text-sm font-semibold text-secondary tabular-nums">••••</span>
           ) : (
-            <>
-              {/* Mobile: stack value + percent to avoid overflow */}
-              <div className="md:hidden flex flex-col items-center leading-tight">
-                <PriceChange value={totals.totalGain} percent={totals.totalGainPercent} format="currency" noDecimals size="sm" />
-                <PriceChange value={totals.totalGain} percent={totals.totalGainPercent} format="percent" size="sm" />
-              </div>
-              {/* Desktop: inline */}
-              <div className="hidden md:block">
-                <PriceChange value={totals.totalGain} percent={totals.totalGainPercent} format="both" noDecimals />
-              </div>
-            </>
+            <PriceChange value={totals.totalGain} percent={totals.totalGainPercent} format="both" noDecimals />
           )}
         </div>
-      </div>
 
+        {/* Mover badges — right-aligned */}
+        {holdings.length > 0 && (
+          <div className="ml-auto no-privacy flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => onMoverFilter(moverFilter === 'gainers' ? null : 'gainers')}
+              aria-pressed={moverFilter === 'gainers'}
+              aria-label="Filter to gainers"
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-semibold tabular-nums transition-all"
+              style={{
+                backgroundColor: moverFilter === 'gainers' ? '#34C759' : 'rgba(52,199,89,0.12)',
+                color: moverFilter === 'gainers' ? '#fff' : '#34C759',
+                touchAction: 'manipulation',
+              }}
+            >
+              <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+              </svg>
+              {dayMovers.gainers}
+            </button>
+            <button
+              onClick={() => onMoverFilter(moverFilter === 'losers' ? null : 'losers')}
+              aria-pressed={moverFilter === 'losers'}
+              aria-label="Filter to losers"
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-semibold tabular-nums transition-all"
+              style={{
+                backgroundColor: moverFilter === 'losers' ? '#FF3B30' : 'rgba(255,59,48,0.12)',
+                color: moverFilter === 'losers' ? '#fff' : '#FF3B30',
+                touchAction: 'manipulation',
+              }}
+            >
+              <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+              {dayMovers.losers}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

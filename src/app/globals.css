@@ -22,6 +22,7 @@
   --font-family-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
     "Helvetica Neue", Arial, sans-serif;
   --font-family-mono: "SF Mono", "Monaco", "Menlo", "Courier New", monospace;
+  --text-2xs: 0.625rem;
 }
 
 /* Explicit CSS custom properties for runtime theming (var() usage, dark mode) */
@@ -39,6 +40,12 @@
   --color-row-hover: #F2F2F7;
   --color-row-gain: #dcfce7;
   --color-row-loss: #fee2e2;
+}
+
+/* Global focus-visible ring for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 /* Base styles */
@@ -86,10 +93,6 @@ html[data-theme="dark"] body {
 
 html[data-theme="dark"] .card {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-
-html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
-  background-color: #48484A;
 }
 
 html[data-theme="dark"] .input {
@@ -151,7 +154,7 @@ html[data-theme="dark"] .input {
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background-color: #E5E5EA;
+    background-color: var(--color-border);
   }
 
   .btn-secondary:disabled {
@@ -180,12 +183,16 @@ html[data-theme="dark"] .input {
     border-color: var(--color-accent);
   }
 
+  .input:focus-visible {
+    outline: none;
+  }
+
   .input::placeholder {
     color: var(--color-tertiary);
   }
 
   .input:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
   }
 
