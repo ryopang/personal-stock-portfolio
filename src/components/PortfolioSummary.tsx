@@ -53,8 +53,16 @@ export default function PortfolioSummary({
     ? 'text-loss'
     : 'text-primary';
 
+  const dayAccentShadow = holdings.length > 0
+    ? totals.dailyChange > 0
+      ? 'inset 3px 0 0 #34C759'
+      : totals.dailyChange < 0
+      ? 'inset 3px 0 0 #FF3B30'
+      : undefined
+    : undefined;
+
   return (
-    <div className="card p-4 md:p-5">
+    <div className="card p-4 md:p-5" style={dayAccentShadow ? { boxShadow: dayAccentShadow } : undefined}>
       {/* Row 1: label + controls */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1">
