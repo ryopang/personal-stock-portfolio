@@ -481,6 +481,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                       holding={lot}
                       onEdit={onEdit}
                       onDelete={onDelete}
+                      isChild
                     />
                   ))}
                 </div>

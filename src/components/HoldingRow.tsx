@@ -59,7 +59,7 @@ export function HoldingTableRow({ holding, onEdit, onDelete, isChild }: Props) {
     <tr className={`group border-b border-border last:border-0 transition-colors hover:row-bg-hover ${rowBgClass}`}>
 
       {/* Symbol + Name + hover actions */}
-      <td className="py-2 pl-3 pr-2">
+      <td className={`py-2 pr-2 ${isChild ? 'pl-7' : 'pl-3'}`}>
         <div className="flex items-center justify-start gap-2.5">
           {/* Fixed-width icon slot */}
           <div className="w-5 h-5 flex items-center justify-center shrink-0">
@@ -139,9 +139,18 @@ export function HoldingTableRow({ holding, onEdit, onDelete, isChild }: Props) {
         </div>
       </td>
 
-      {/* 52-Week Range */}
+      {/* 52-Week Range (summary/standalone) or Purchase Date (child lot) */}
       <td className="py-1.5 px-2 pr-3 text-center">
-        {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null ? (
+        {isChild ? (
+          holding.purchaseDate ? (
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-xs text-secondary">Purchased</span>
+              <span className="text-xs text-primary tabular-nums">{holding.purchaseDate}</span>
+            </div>
+          ) : (
+            <span className="text-xs text-secondary">—</span>
+          )
+        ) : holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null ? (
           <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
         ) : (
           <span className="text-xs text-secondary">—</span>
@@ -348,7 +357,7 @@ export function GroupCard({
 }
 
 // Mobile card
-export function HoldingCard({ holding, onEdit, onDelete }: Props) {
+export function HoldingCard({ holding, onEdit, onDelete, isChild }: Props) {
   const cardBgClass = holding.dailyChange > 0
     ? 'row-bg-gain'
     : holding.dailyChange < 0
@@ -435,10 +444,19 @@ export function HoldingCard({ holding, onEdit, onDelete }: Props) {
               size="sm"
             />
           </div>
-          {holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null && (
-            <div className="shrink-0 flex items-center">
-              <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
-            </div>
+          {isChild ? (
+            holding.purchaseDate && (
+              <div className="shrink-0 flex flex-col items-center">
+                <span className="text-xs text-secondary">Purchased</span>
+                <span className="text-xs text-primary tabular-nums">{holding.purchaseDate}</span>
+              </div>
+            )
+          ) : (
+            holding.fiftyTwoWeekLow != null && holding.fiftyTwoWeekHigh != null && (
+              <div className="shrink-0 flex items-center">
+                <FiftyTwoWeekBar low={holding.fiftyTwoWeekLow} high={holding.fiftyTwoWeekHigh} current={holding.currentPrice} />
+              </div>
+            )
           )}
         </div>
       </div>
