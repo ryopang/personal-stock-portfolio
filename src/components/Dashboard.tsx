@@ -14,6 +14,7 @@ import AddHoldingModal from './AddHoldingModal';
 import CSVImportModal from './CSVImportModal';
 import HistoricalImportModal from './HistoricalImportModal';
 import MacroContextModal from './MacroContextModal';
+import EditPurchaseDatesModal from './EditPurchaseDatesModal';
 import EmptyState from './EmptyState';
 import ChartsView from './ChartsView';
 import AnalysisTab from './AnalysisTab';
@@ -38,6 +39,7 @@ export default function Dashboard({ initialHoldings }: Props) {
   const [csvImportOpen, setCSVImportOpen] = useState(false);
   const [historicalImportOpen, setHistoricalImportOpen] = useState(false);
   const [macroContextOpen, setMacroContextOpen] = useState(false);
+  const [editDatesOpen, setEditDatesOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [privacyMode, setPrivacyMode] = useState(false);
@@ -212,6 +214,31 @@ export default function Dashboard({ initialHoldings }: Props) {
     await refresh();
   }, [addHolding, updateHolding, refresh]);
 
+  const handleSavePurchaseDates = useCallback(async (
+    updates: { id: string; purchaseDate: string }[]
+  ) => {
+    const results = await Promise.allSettled(
+      updates.map(({ id, purchaseDate }) =>
+        fetch(`/api/holdings/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ purchaseDate }),
+        }).then(async (res) => {
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error ?? 'Failed to update');
+          }
+          const data = await res.json();
+          updateHolding(id, data.holding);
+        })
+      )
+    );
+    const failed = results.filter((r) => r.status === 'rejected');
+    if (failed.length > 0) {
+      throw new Error(`${failed.length} update${failed.length !== 1 ? 's' : ''} failed`);
+    }
+  }, [updateHolding]);
+
   return (
     <div className="min-h-dvh bg-background">
       {/* Sticky top band: header + view tabs + portfolio summary */}
@@ -327,6 +354,18 @@ export default function Dashboard({ initialHoldings }: Props) {
                     </svg>
                     Edit macro context
                   </button>
+                  {holdings.length > 0 && (
+                    <button
+                      onClick={() => { setAdminOpen(false); setEditDatesOpen(true); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
+                      style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
+                    >
+                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                      </svg>
+                      Edit purchase dates
+                    </button>
+                  )}
                   <div className="my-1 border-t" style={{ borderColor: 'var(--color-border)' }} />
                   <button
                     onClick={() => {
@@ -484,6 +523,15 @@ export default function Dashboard({ initialHoldings }: Props) {
       {/* Macro context editor */}
       {macroContextOpen && (
         <MacroContextModal onClose={() => setMacroContextOpen(false)} />
+      )}
+
+      {/* Edit purchase dates */}
+      {editDatesOpen && (
+        <EditPurchaseDatesModal
+          holdings={holdings}
+          onClose={() => setEditDatesOpen(false)}
+          onSave={handleSavePurchaseDates}
+        />
       )}
 
       {/* Investment advisor chatbot */}
