@@ -312,6 +312,7 @@ export default function CSVImportModal({ onClose, onImportComplete }: Props) {
                   max={today}
                   onChange={(e) => setPurchaseDate(e.target.value)}
                   className="input py-1.5 text-sm w-auto"
+                  style={{ touchAction: 'manipulation' }}
                 />
               </div>
 

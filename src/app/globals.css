@@ -99,6 +99,28 @@ html[data-theme="dark"] .input {
   color-scheme: dark;
 }
 
+/* Date input — cross-browser / cross-platform fixes */
+input[type="date"]::-webkit-date-and-time-value {
+  /* Safari (Mac + iOS): fix value text left-alignment when -webkit-appearance:none is set */
+  text-align: left;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  /* Chrome: restyle the calendar icon that appearance:none leaves unstyled */
+  cursor: pointer;
+  opacity: 0.5;
+  border-radius: 3px;
+  transition: opacity 0.15s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
 /* Reusable component classes */
 @layer components {
   .card {
@@ -168,7 +190,7 @@ html[data-theme="dark"] .input {
     padding: 0.625rem 0.875rem;
     background-color: var(--color-surface-secondary);
     color: var(--color-primary);
-    font-size: 0.9375rem;
+    font-size: 1rem; /* ≥16px prevents iOS Safari viewport auto-zoom on focus */
     font-family: var(--font-family-sans);
     border: 1.5px solid transparent;
     border-radius: 0.625rem;
@@ -176,6 +198,7 @@ html[data-theme="dark"] .input {
     transition: border-color 0.15s, background-color 0.15s;
     -webkit-appearance: none;
     appearance: none;
+    color-scheme: light;
   }
 
   .input:focus {

@@ -34,7 +34,7 @@ export default function AddHoldingModal({ holding, onClose, onSave }: Props) {
   const [type, setType] = useState<AssetType>(holding?.type ?? 'stock');
   const [quantity, setQuantity] = useState(holding ? String(holding.quantity) : '');
   const [costBasis, setCostBasis] = useState(holding ? String(holding.costBasis) : '');
-  const [purchaseDate] = useState(
+  const [purchaseDate, setPurchaseDate] = useState(
     holding?.purchaseDate ?? new Date().toISOString().slice(0, 10)
   );
   const [industry, setIndustry] = useState(holding?.industry ?? '');
@@ -214,6 +214,23 @@ export default function AddHoldingModal({ holding, onClose, onSave }: Props) {
                 />
               </div>
               {errors.costBasis && <p className="error-text">{errors.costBasis}</p>}
+            </div>
+
+            {/* Purchase date */}
+            <div>
+              <label className="label" htmlFor="purchaseDate">
+                Purchase date
+              </label>
+              <input
+                id="purchaseDate"
+                type="date"
+                value={purchaseDate}
+                onChange={(e) => setPurchaseDate(e.target.value)}
+                max={new Date().toISOString().slice(0, 10)}
+                disabled={isSubmitting}
+                className="input w-full"
+                style={{ touchAction: 'manipulation' }}
+              />
             </div>
 
             {/* Industry */}
