@@ -15,6 +15,8 @@ interface Props {
   onRefresh: () => Promise<void>;
   moverFilter: 'gainers' | 'losers' | null;
   onMoverFilter: (f: 'gainers' | 'losers' | null) => void;
+  alertFilter: boolean;
+  onAlertFilter: (f: boolean) => void;
 }
 
 export default function PortfolioSummary({
@@ -26,6 +28,8 @@ export default function PortfolioSummary({
   onRefresh,
   moverFilter,
   onMoverFilter,
+  alertFilter,
+  onAlertFilter,
 }: Props) {
   const [hidden, setHidden] = useState(true);
 
@@ -153,9 +157,20 @@ export default function PortfolioSummary({
           )}
         </div>
 
-        {/* Mover badges — right-aligned */}
+        {/* Mover filters — right-aligned */}
         {holdings.length > 0 && (
           <div className="ml-auto no-privacy flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => onAlertFilter(!alertFilter)}
+              aria-pressed={alertFilter}
+              aria-label="Show only movers over 5%"
+              className={`inline-flex items-center shrink-0 whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                alertFilter ? 'bg-primary text-surface' : 'text-secondary hover:text-primary hover:bg-surface-secondary'
+              }`}
+              style={{ touchAction: 'manipulation' }}
+            >
+              👀 Movers
+            </button>
             <button
               onClick={() => onMoverFilter(moverFilter === 'gainers' ? null : 'gainers')}
               aria-pressed={moverFilter === 'gainers'}

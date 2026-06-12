@@ -57,6 +57,8 @@ interface Props {
   onDelete: (id: string) => void;
   moverFilter?: 'gainers' | 'losers' | null;
   onClearMoverFilter?: () => void;
+  alertFilter: boolean;
+  onAlertFilter: (f: boolean) => void;
 }
 
 function computeAggregate(lots: HoldingWithMetrics[]): HoldingWithMetrics {
@@ -79,12 +81,11 @@ function computeAggregate(lots: HoldingWithMetrics[]): HoldingWithMetrics {
   };
 }
 
-export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete, moverFilter, onClearMoverFilter }: Props) {
+export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete, moverFilter, onClearMoverFilter, alertFilter, onAlertFilter }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('all');
   const [activeIndustry, setActiveIndustry] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('symbol');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [alertFilter, setAlertFilter] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const filterBarRef = useRef<HTMLDivElement>(null);
 
@@ -271,19 +272,8 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
             </div>
           )}
 
-          {/* Mover alert filter + industry chips — right-aligned on desktop */}
+          {/* Industry chips — right-aligned on desktop */}
           <div className="flex items-center gap-1 overflow-x-auto md:ml-auto" style={{ scrollbarWidth: 'none' }}>
-            <button
-              onClick={() => setAlertFilter((f) => !f)}
-              aria-pressed={alertFilter}
-              aria-label="Show only movers over 5%"
-              className={`inline-flex items-center shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                alertFilter ? 'bg-primary text-surface' : 'text-secondary hover:text-primary hover:bg-surface-secondary'
-              }`}
-              style={{ touchAction: 'manipulation' }}
-            >
-              👀 Movers
-            </button>
             {industryCounts.length > 0 && filtered.length > 0 && (
           <>
               {industryCounts.map(([industry, count]) => {
@@ -362,7 +352,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                           onClick={() => {
                             setActiveTab('all');
                             setActiveIndustry(null);
-                            setAlertFilter(false);
+                            onAlertFilter(false);
                             onClearMoverFilter?.();
                           }}
                           className="text-xs text-accent underline underline-offset-2 hover:no-underline transition-all"
@@ -460,7 +450,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                     onClick={() => {
                       setActiveTab('all');
                       setActiveIndustry(null);
-                      setAlertFilter(false);
+                      onAlertFilter(false);
                       onClearMoverFilter?.();
                     }}
                     className="text-xs text-accent underline underline-offset-2 hover:no-underline transition-all"
