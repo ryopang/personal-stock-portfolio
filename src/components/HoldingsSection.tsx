@@ -378,7 +378,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                         expanded={expandedGroups.has(aggregate.symbol)}
                         onToggle={() => toggleGroup(aggregate.symbol)}
                       />
-                      {expandedGroups.has(aggregate.symbol) && lots.map((lot) => (
+                      {expandedGroups.has(aggregate.symbol) && [...lots].sort((a, b) => (a.purchaseDate ?? '').localeCompare(b.purchaseDate ?? '')).map((lot) => (
                         <HoldingTableRow
                           key={lot.id}
                           holding={lot}
@@ -475,7 +475,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                     expanded={expandedGroups.has(aggregate.symbol)}
                     onToggle={() => toggleGroup(aggregate.symbol)}
                   />
-                  {expandedGroups.has(aggregate.symbol) && lots.map((lot) => (
+                  {expandedGroups.has(aggregate.symbol) && [...lots].sort((a, b) => (a.purchaseDate ?? '').localeCompare(b.purchaseDate ?? '')).map((lot) => (
                     <HoldingCard
                       key={lot.id}
                       holding={lot}
