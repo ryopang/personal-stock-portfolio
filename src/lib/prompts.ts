@@ -20,7 +20,7 @@ export const ANALYSIS_SYSTEM_PROMPT_EN = `You are a long-term portfolio analyst 
 ## TAX RULES (apply to every sell recommendation)
 - The client is a New Jersey resident filing jointly. NJ taxes capital gains as ordinary income with no preferential rate; federal long-term capital gains rates apply for positions held over 1 year.
 - For ANY recommended sale, you must state: the estimated gain or loss, whether it is long-term or short-term, and a rough combined federal + NJ tax cost estimate, clearly labeled as an estimate.
-- Unless the data indicates otherwise, assume positions are long-term holdings (held over 1 year) and apply federal long-term capital gains rates plus NJ ordinary income treatment. If a position appears recently acquired or the data flags it as short-term, call that out explicitly since the tax cost will be materially higher.
+- The holdings table includes each lot's exact purchase date and a ST/LT classification (LT = held >1 year; ST = held ≤1 year) based on today's date. Use these actual figures — do not assume all positions are long-term. For any lot classified ST, call out the materially higher tax cost explicitly, since short-term federal rates plus NJ ordinary income treatment can significantly erode net proceeds compared to LT treatment.
 - A sale is only justified if the expected benefit clearly exceeds the tax drag. Show that comparison.
 - Flag tax-loss harvesting opportunities when unrealized losses exist, including the wash-sale constraint.
 
@@ -61,7 +61,7 @@ export const ANALYSIS_SYSTEM_PROMPT_ZH = `你是一位為單一客戶服務的�
 ## 稅務規則(適用於每一項賣出建議)
 - 客戶為新澤西州居民,夫婦合併報稅。新澤西州將資本增值按普通收入徵稅,無優惠稅率;持有超過1年的持倉適用聯邦長期資本增值稅率。
 - 任何賣出建議必須列明:估計盈虧、屬長期或短期持有,以及聯邦加新澤西州的合計稅務成本粗略估算,並明確標示為估算數字。
-- 除非數據另有顯示,否則假設持倉為長期持有(超過1年),適用聯邦長期資本增值稅率及新澤西州普通收入稅務處理。若持倉顯示為近期買入或數據標示為短期,必須明確指出,因為稅務成本會明顯較高。
+- 持倉表格包含每批次的實際買入日期,以及根據今日日期判斷的ST/LT分類（LT = 持有超過1年;ST = 持有不超過1年）。必須使用這些實際數據,不可假設所有持倉均為長期持有。對任何標示為ST的批次,必須明確指出較高的稅務成本,因為短期聯邦稅率加上新澤西州普通收入稅務處理,可能遠比長期稅率昂貴。
 - 只有當預期收益明顯超過稅務拖累時,賣出才有理據。必須展示這項比較。
 - 當存在未實現虧損時,標示稅務虧損收割(tax-loss harvesting)機會,並提及虛售規則(wash-sale)的限制。
 
@@ -113,18 +113,30 @@ function fmtPct(n: number | null): string {
   return `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
 }
 
+function lotTaxStatus(purchaseDate: string): 'LT' | 'ST' {
+  const purchased = new Date(purchaseDate);
+  const cutoff = new Date(purchased);
+  cutoff.setFullYear(cutoff.getFullYear() + 1);
+  return new Date() >= cutoff ? 'LT' : 'ST';
+}
+
 // One table builder for both prompts. The analysis prompt shows absolute G/L;
 // the chat prompt swaps that for percent G/L plus today's move.
 export function buildHoldingsTable(
   holdings: HoldingWithMetrics[],
   totalValue: number,
-  opts: { includeDaily?: boolean } = {},
+  opts: { includeDaily?: boolean; includeTaxInfo?: boolean } = {},
 ): string {
   const sorted = [...holdings].sort((a, b) => b.currentValue - a.currentValue);
 
-  const header = opts.includeDaily
-    ? '| Symbol | Name | Type/Sector | Price | Cost Basis | Qty | Value | Alloc% | Total G/L | Today |\n|--------|------|-------------|-------|------------|-----|-------|--------|-----------|-------|'
-    : '| Symbol | Name | Type/Sector | Current Price | Cost Basis/Unit | Qty | Current Value | Alloc% | Unrealized G/L |\n|--------|------|-------------|---------------|-----------------|-----|---------------|--------|----------------|';
+  let header: string;
+  if (opts.includeDaily) {
+    header = '| Symbol | Name | Type/Sector | Price | Cost Basis | Qty | Value | Alloc% | Total G/L | Today |\n|--------|------|-------------|-------|------------|-----|-------|--------|-----------|-------|';
+  } else if (opts.includeTaxInfo) {
+    header = '| Symbol | Name | Type/Sector | Current Price | Cost Basis/Unit | Qty | Current Value | Alloc% | Unrealized G/L | Purchase Date | ST/LT |\n|--------|------|-------------|---------------|-----------------|-----|---------------|--------|----------------|---------------|-------|';
+  } else {
+    header = '| Symbol | Name | Type/Sector | Current Price | Cost Basis/Unit | Qty | Current Value | Alloc% | Unrealized G/L |\n|--------|------|-------------|---------------|-----------------|-----|---------------|--------|----------------|';
+  }
 
   const rows = sorted.map((h) => {
     const alloc = totalValue > 0 ? ((h.currentValue / totalValue) * 100).toFixed(1) : '0';
@@ -146,6 +158,10 @@ export function buildHoldingsTable(
       cells.push(
         `${gainSign}$${Math.abs(h.totalGain ?? 0).toFixed(2)} (${gainSign}${h.totalGainPercent.toFixed(1)}%)`,
       );
+      if (opts.includeTaxInfo) {
+        cells.push(h.purchaseDate);
+        cells.push(lotTaxStatus(h.purchaseDate));
+      }
     }
     return `| ${cells.join(' | ')} |`;
   });
@@ -217,7 +233,7 @@ You are analyzing my actual investment portfolio. Use the exact figures below �
 **Total Cost Basis:** $${totalCost.toFixed(2)}
 **Total Unrealized Gain/Loss:** ${totalGain >= 0 ? '+' : ''}$${totalGain.toFixed(2)} (${totalGainPct >= 0 ? '+' : ''}${totalGainPct.toFixed(1)}%)
 
-${buildHoldingsTable(holdings, totalValue)}
+${buildHoldingsTable(holdings, totalValue, { includeTaxInfo: true })}
 ${benchmark ? `
 ## BENCHMARK (as of ${new Date().toISOString().slice(0, 10)})
 
