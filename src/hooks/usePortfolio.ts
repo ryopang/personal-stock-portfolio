@@ -68,7 +68,7 @@ export function usePortfolio(): UsePortfolioReturn {
   useEffect(() => {
     if (!lastUpdated || holdingsRef.current.length === 0) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA');
 
     const byIndustry: DailySnapshot['byIndustry'] = {};
     for (const h of holdingsRef.current) {

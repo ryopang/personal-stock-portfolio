@@ -35,7 +35,7 @@ export async function PUT(
       ...existing,
       ...(quantity != null ? { quantity: Number(quantity) } : {}),
       ...(costBasis != null ? { costBasis: Number(costBasis) } : {}),
-      ...(purchaseDate ? { purchaseDate } : {}),
+      ...(purchaseDate != null ? { purchaseDate } : {}),
       ...(type ? { type } : {}),
       ...('industry' in body ? { industry: industry?.trim() || undefined } : {}),
     };

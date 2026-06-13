@@ -35,7 +35,7 @@ export default function AddHoldingModal({ holding, onClose, onSave }: Props) {
   const [quantity, setQuantity] = useState(holding ? String(holding.quantity) : '');
   const [costBasis, setCostBasis] = useState(holding ? String(holding.costBasis) : '');
   const [purchaseDate, setPurchaseDate] = useState(
-    holding?.purchaseDate ?? new Date().toISOString().slice(0, 10)
+    holding?.purchaseDate ?? new Date().toLocaleDateString('en-CA')
   );
   const [industry, setIndustry] = useState(holding?.industry ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -226,7 +226,7 @@ export default function AddHoldingModal({ holding, onClose, onSave }: Props) {
                 type="date"
                 value={purchaseDate}
                 onChange={(e) => setPurchaseDate(e.target.value)}
-                max={new Date().toISOString().slice(0, 10)}
+                max={new Date().toLocaleDateString('en-CA')}
                 disabled={isSubmitting}
                 className="input w-full"
                 style={{ touchAction: 'manipulation' }}

@@ -11,10 +11,10 @@ interface Props {
 }
 
 export default function EditPurchaseDatesModal({ holdings, onClose, onSave }: Props) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString('en-CA');
 
   const [dates, setDates] = useState<Record<string, string>>(() =>
-    Object.fromEntries(holdings.map((h) => [h.id, h.purchaseDate]))
+    Object.fromEntries(holdings.map((h) => [h.id, h.purchaseDate ?? '']))
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');

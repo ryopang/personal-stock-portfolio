@@ -119,15 +119,18 @@ function filterByTimeRange(snaps: DailySnapshot[], range: string): DailySnapshot
     return snaps.filter(s => s.date >= dateStr(cutoff));
   }
   if (range === '1m') {
-    const cutoff = new Date(now); cutoff.setMonth(now.getMonth() - 1);
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+    if (cutoff.getDate() !== now.getDate()) cutoff.setDate(0); // clamp month-end overflow (e.g. Mar 31 → Feb 28)
     return snaps.filter(s => s.date >= dateStr(cutoff));
   }
   if (range === '3m') {
-    const cutoff = new Date(now); cutoff.setMonth(now.getMonth() - 3);
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+    if (cutoff.getDate() !== now.getDate()) cutoff.setDate(0);
     return snaps.filter(s => s.date >= dateStr(cutoff));
   }
   if (range === '6m') {
-    const cutoff = new Date(now); cutoff.setMonth(now.getMonth() - 6);
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+    if (cutoff.getDate() !== now.getDate()) cutoff.setDate(0);
     return snaps.filter(s => s.date >= dateStr(cutoff));
   }
   if (range === 'ytd') return snaps.filter(s => s.date >= `${now.getFullYear()}-01-01`);

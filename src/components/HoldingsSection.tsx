@@ -134,8 +134,11 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
       if (!map.has(h.symbol)) map.set(h.symbol, []);
       map.get(h.symbol)!.push(h);
     }
+    const sortedByDate = (lots: HoldingWithMetrics[]) =>
+      [...lots].sort((a, b) => (a.purchaseDate ?? '').localeCompare(b.purchaseDate ?? ''));
+
     const groups = Array.from(map.values()).map((lots) => ({
-      lots,
+      lots: lots.length > 1 ? sortedByDate(lots) : lots,
       aggregate: computeAggregate(lots),
     }));
     const mult = sortDir === 'asc' ? 1 : -1;
@@ -378,7 +381,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                         expanded={expandedGroups.has(aggregate.symbol)}
                         onToggle={() => toggleGroup(aggregate.symbol)}
                       />
-                      {expandedGroups.has(aggregate.symbol) && [...lots].sort((a, b) => (a.purchaseDate ?? '').localeCompare(b.purchaseDate ?? '')).map((lot) => (
+                      {expandedGroups.has(aggregate.symbol) && lots.map((lot) => (
                         <HoldingTableRow
                           key={lot.id}
                           holding={lot}
@@ -475,7 +478,7 @@ export default function HoldingsSection({ holdings, isLoading, onEdit, onDelete,
                     expanded={expandedGroups.has(aggregate.symbol)}
                     onToggle={() => toggleGroup(aggregate.symbol)}
                   />
-                  {expandedGroups.has(aggregate.symbol) && [...lots].sort((a, b) => (a.purchaseDate ?? '').localeCompare(b.purchaseDate ?? '')).map((lot) => (
+                  {expandedGroups.has(aggregate.symbol) && lots.map((lot) => (
                     <HoldingCard
                       key={lot.id}
                       holding={lot}
