@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     model: provider.model,
     system: lang === 'zh-TW' ? ANALYSIS_SYSTEM_PROMPT_ZH : ANALYSIS_SYSTEM_PROMPT_EN,
     prompt,
-    maxOutputTokens: 3000,
+    maxOutputTokens: 4000,
     onError: ({ error }) => console.error('[POST /api/analysis]', error),
     onFinish: async ({ text }) => {
       if (text) {
