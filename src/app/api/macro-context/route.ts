@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getMacroContext, setMacroContext, MACRO_CONTEXT_MAX_LENGTH } from '@/lib/macro-context';
+import { DEMO_MODE } from '@/lib/demo-mode';
+import { DEMO_MACRO_CONTEXT } from '@/lib/demo-data';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  if (DEMO_MODE) {
+    return NextResponse.json({ macro: DEMO_MACRO_CONTEXT });
+  }
   try {
     const macro = await getMacroContext();
     return NextResponse.json({ macro });
@@ -15,6 +20,9 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  if (DEMO_MODE) {
+    return NextResponse.json({ error: 'Read-only in demo mode' }, { status: 403 });
+  }
   try {
     const body = await req.json().catch(() => null);
     if (typeof body?.text !== 'string') {

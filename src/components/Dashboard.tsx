@@ -6,6 +6,7 @@ import { usePortfolioStore } from '@/store/portfolioStore';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useModalBehavior } from '@/hooks/useModalBehavior';
 import { useToastStore } from '@/store/toastStore';
+import { DEMO_MODE } from '@/lib/demo-mode';
 import Toasts from './Toasts';
 import ConfirmModal from './ConfirmModal';
 import PortfolioSummary from './PortfolioSummary';
@@ -281,9 +282,19 @@ export default function Dashboard({ initialHoldings }: Props) {
       {/* Page header */}
       <header className="">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-sm font-bold text-primary tracking-widest uppercase">{portfolioName}</h1>
-            <p className="text-xs text-tertiary mt-0.5">{today}</p>
+          <div className="flex items-center gap-2">
+            <div>
+              <h1 className="text-sm font-bold text-primary tracking-widest uppercase">{portfolioName}</h1>
+              <p className="text-xs text-tertiary mt-0.5">{today}</p>
+            </div>
+            {DEMO_MODE && (
+              <span
+                className="hidden sm:inline-flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded-full shrink-0"
+                style={{ backgroundColor: 'rgba(0,113,227,0.12)', color: '#0071E3' }}
+              >
+                Demo
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {/* Privacy mode toggle */}
@@ -345,44 +356,64 @@ export default function Dashboard({ initialHoldings }: Props) {
               </button>
               {adminOpen && (
                 <div
-                  className="absolute right-0 mt-1.5 w-48 rounded-xl shadow-lg py-1 z-50"
+                  className="absolute right-0 mt-1.5 w-56 rounded-xl shadow-lg py-1 z-50"
                   style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
                 >
+                  {DEMO_MODE && (
+                    <div
+                      className="mx-3 mb-1 mt-0.5 px-3 py-2 rounded-lg text-2xs text-center font-medium"
+                      style={{ backgroundColor: 'rgba(0,113,227,0.08)', color: '#0071E3' }}
+                    >
+                      Demo mode — read only
+                    </div>
+                  )}
+                  {/* Add holding */}
                   <button
-                    onClick={() => { setAdminOpen(false); handleAdd(); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
+                    onClick={() => { if (DEMO_MODE) return; setAdminOpen(false); handleAdd(); }}
+                    disabled={DEMO_MODE}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${DEMO_MODE ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
                     style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
+                    title={DEMO_MODE ? 'Not available in demo mode' : undefined}
                   >
                     <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                     </svg>
                     Add holding
                   </button>
+                  {/* Import */}
                   <button
-                    onClick={() => { setAdminOpen(false); setImportPickerOpen(true); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
+                    onClick={() => { if (DEMO_MODE) return; setAdminOpen(false); setImportPickerOpen(true); }}
+                    disabled={DEMO_MODE}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${DEMO_MODE ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
                     style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
+                    title={DEMO_MODE ? 'Not available in demo mode' : undefined}
                   >
                     <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                     </svg>
                     Import
                   </button>
+                  {/* Edit macro context */}
                   <button
-                    onClick={() => { setAdminOpen(false); setMacroContextOpen(true); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
+                    onClick={() => { if (DEMO_MODE) return; setAdminOpen(false); setMacroContextOpen(true); }}
+                    disabled={DEMO_MODE}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${DEMO_MODE ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
                     style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
+                    title={DEMO_MODE ? 'Not available in demo mode' : undefined}
                   >
                     <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
                     </svg>
                     Edit macro context
                   </button>
-                  {holdings.length > 0 && (
+                  {/* Edit purchase dates */}
+                  {(holdings.length > 0 || DEMO_MODE) && (
                     <button
-                      onClick={() => { setAdminOpen(false); setEditDatesOpen(true); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
+                      onClick={() => { if (DEMO_MODE) return; setAdminOpen(false); setEditDatesOpen(true); }}
+                      disabled={DEMO_MODE}
+                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${DEMO_MODE ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
                       style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
+                      title={DEMO_MODE ? 'Not available in demo mode' : undefined}
                     >
                       <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
@@ -391,18 +422,23 @@ export default function Dashboard({ initialHoldings }: Props) {
                     </button>
                   )}
                   <div className="my-1 border-t" style={{ borderColor: 'var(--color-border)' }} />
+                  {/* Rename portfolio */}
                   <button
-                    onClick={() => { setAdminOpen(false); setRenameValue(portfolioName); setRenameOpen(true); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
+                    onClick={() => { if (DEMO_MODE) return; setAdminOpen(false); setRenameValue(portfolioName); setRenameOpen(true); }}
+                    disabled={DEMO_MODE}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${DEMO_MODE ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
                     style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
+                    title={DEMO_MODE ? 'Not available in demo mode' : undefined}
                   >
                     <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
                     </svg>
                     Rename portfolio
                   </button>
+                  {/* Password toggle — always greyed out in demo */}
                   <button
                     onClick={() => {
+                      if (DEMO_MODE) return;
                       const next = !gateEnabled;
                       setGateEnabled(next);
                       if (next) {
@@ -411,8 +447,10 @@ export default function Dashboard({ initialHoldings }: Props) {
                         localStorage.setItem('portfolio_gate_disabled', 'true');
                       }
                     }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
+                    disabled={DEMO_MODE}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${DEMO_MODE ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
                     style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
+                    title={DEMO_MODE ? 'Not available in demo mode' : undefined}
                   >
                     <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       {gateEnabled
@@ -422,7 +460,8 @@ export default function Dashboard({ initialHoldings }: Props) {
                     </svg>
                     {gateEnabled ? 'Disable password' : 'Enable password'}
                   </button>
-                  {holdings.length > 0 && (
+                  {/* Clear all — hidden in demo, visible (with condition) in prod */}
+                  {!DEMO_MODE && holdings.length > 0 && (
                     <>
                       <div className="my-1 border-t" style={{ borderColor: 'var(--color-border)' }} />
                       <button

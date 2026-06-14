@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import redis from '@/lib/redis';
 import type { DailySnapshot } from '@/lib/types';
+import { DEMO_MODE } from '@/lib/demo-mode';
 
 export const dynamic = 'force-dynamic';
 
 const HASH_KEY = 'portfolio:snapshots';
 
 export async function POST(req: NextRequest) {
+  if (DEMO_MODE) {
+    return NextResponse.json({ error: 'Read-only in demo mode' }, { status: 403 });
+  }
   try {
     const { snapshots } = await req.json() as { snapshots: DailySnapshot[] };
 

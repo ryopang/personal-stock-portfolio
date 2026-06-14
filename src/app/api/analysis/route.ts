@@ -14,6 +14,8 @@ import {
   buildAnalysisPrompt,
   extractWatchlist,
 } from '@/lib/prompts';
+import { DEMO_MODE } from '@/lib/demo-mode';
+import { DEMO_ANALYSIS_TEXT } from '@/lib/demo-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,12 +28,43 @@ interface CachedAnalysis {
 }
 
 export async function GET() {
+  if (DEMO_MODE) {
+    return NextResponse.json({
+      cached: {
+        text: DEMO_ANALYSIS_TEXT,
+        provider: 'demo',
+        generatedAt: Date.now() - 60000, // pretend it was generated 1 minute ago
+      } satisfies CachedAnalysis,
+    });
+  }
   const cached = await redis.get<CachedAnalysis>(CACHE_KEY);
   if (!cached) return NextResponse.json({ cached: null });
   return NextResponse.json({ cached });
 }
 
 export async function POST(req: NextRequest) {
+  if (DEMO_MODE) {
+    // Stream the demo analysis text as plain text — identical wire format to
+    // what toTextStreamResponse() produces so AIAnalysis.tsx needs no changes.
+    const encoder = new TextEncoder();
+    const text = DEMO_ANALYSIS_TEXT;
+    const stream = new ReadableStream({
+      async start(controller) {
+        // Stream in ~50-char chunks with a tiny delay to simulate AI streaming
+        const chunkSize = 50;
+        for (let i = 0; i < text.length; i += chunkSize) {
+          controller.enqueue(encoder.encode(text.slice(i, i + chunkSize)));
+          // Yield to the event loop so Next.js can flush chunks
+          await new Promise((r) => setTimeout(r, 8));
+        }
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+    });
+  }
+
   let lang: string = 'en';
   let providerKey: ProviderKey = 'gemini';
 
@@ -54,8 +87,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: provider.error }, { status: 500 });
   }
 
-  // All portfolio/market data is assembled server-side from Redis and Yahoo —
-  // the client only chooses language and provider.
   let holdings;
   try {
     ({ holdings } = await getPortfolioWithMetrics());

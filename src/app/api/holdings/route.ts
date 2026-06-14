@@ -3,10 +3,15 @@ import yahooFinance from '@/lib/yahoo';
 import { getHoldings, upsertHolding, clearHoldings } from '@/lib/holdings-service';
 import { toYahooSymbol } from '@/lib/crypto-symbols';
 import type { Holding, AssetType } from '@/lib/types';
+import { DEMO_MODE } from '@/lib/demo-mode';
+import { DEMO_HOLDINGS } from '@/lib/demo-data';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  if (DEMO_MODE) {
+    return NextResponse.json({ holdings: DEMO_HOLDINGS });
+  }
   try {
     const holdings = await getHoldings();
     return NextResponse.json({ holdings });
@@ -17,6 +22,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (DEMO_MODE) {
+    return NextResponse.json({ error: 'Read-only in demo mode' }, { status: 403 });
+  }
   try {
     const body = await req.json();
     const { symbol, type, quantity, costBasis, purchaseDate } = body as {
@@ -27,7 +35,6 @@ export async function POST(req: NextRequest) {
       purchaseDate: string;
     };
 
-    // Validate required fields
     if (!symbol || !type || quantity == null || costBasis == null || !purchaseDate) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -38,7 +45,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Cost basis must be greater than 0' }, { status: 400 });
     }
 
-    // Validate symbol by fetching a quote — also grabs the display name
     const yahooSymbol = toYahooSymbol(symbol, type);
     let name = symbol.toUpperCase();
     try {
@@ -71,6 +77,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE() {
+  if (DEMO_MODE) {
+    return NextResponse.json({ error: 'Read-only in demo mode' }, { status: 403 });
+  }
   try {
     await clearHoldings();
     return NextResponse.json({ success: true });

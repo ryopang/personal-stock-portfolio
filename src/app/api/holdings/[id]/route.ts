@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getHolding, upsertHolding, deleteHolding } from '@/lib/holdings-service';
 import type { AssetType } from '@/lib/types';
+import { DEMO_MODE } from '@/lib/demo-mode';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +9,9 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (DEMO_MODE) {
+    return NextResponse.json({ error: 'Read-only in demo mode' }, { status: 403 });
+  }
   try {
     const { id } = await params;
     const existing = await getHolding(id);
@@ -52,6 +56,9 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (DEMO_MODE) {
+    return NextResponse.json({ error: 'Read-only in demo mode' }, { status: 403 });
+  }
   try {
     const { id } = await params;
     await deleteHolding(id);
