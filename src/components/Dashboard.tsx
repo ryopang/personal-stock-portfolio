@@ -14,6 +14,7 @@ import AddHoldingModal from './AddHoldingModal';
 import CSVImportModal from './CSVImportModal';
 import HistoricalImportModal from './HistoricalImportModal';
 import MacroContextModal from './MacroContextModal';
+import ImportPickerModal from './ImportPickerModal';
 import EditPurchaseDatesModal from './EditPurchaseDatesModal';
 import EmptyState from './EmptyState';
 import ChartsView from './ChartsView';
@@ -36,10 +37,15 @@ export default function Dashboard({ initialHoldings }: Props) {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<HoldingWithMetrics | null>(null);
+  const [importPickerOpen, setImportPickerOpen] = useState(false);
   const [csvImportOpen, setCSVImportOpen] = useState(false);
   const [historicalImportOpen, setHistoricalImportOpen] = useState(false);
   const [macroContextOpen, setMacroContextOpen] = useState(false);
   const [editDatesOpen, setEditDatesOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [portfolioName, setPortfolioName] = useState("Ryo's Investment Portfolio");
+  const [renameValue, setRenameValue] = useState('');
+  const [renameSaving, setRenameSaving] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [privacyMode, setPrivacyMode] = useState(false);
@@ -111,8 +117,35 @@ export default function Dashboard({ initialHoldings }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    fetch('/api/portfolio-name')
+      .then((r) => r.json())
+      .then(({ name }) => { if (name) setPortfolioName(name); })
+      .catch(() => {});
+  }, []);
+
   const { holdingsWithMetrics, totals, isLoading, isRefreshing, error, refresh, lastUpdated, missingQuoteSymbols } =
     usePortfolio();
+
+  async function handleRenameSave() {
+    if (!renameValue.trim()) return;
+    setRenameSaving(true);
+    try {
+      const res = await fetch('/api/portfolio-name', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: renameValue.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Save failed');
+      setPortfolioName(data.name);
+      setRenameOpen(false);
+    } catch {
+      // leave modal open on error
+    } finally {
+      setRenameSaving(false);
+    }
+  }
 
   const handleAdd = () => {
     setEditTarget(null);
@@ -249,7 +282,7 @@ export default function Dashboard({ initialHoldings }: Props) {
       <header className="">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div>
-            <h1 className="text-sm font-bold text-primary tracking-widest uppercase">Ryo&apos;s Investment Portfolio</h1>
+            <h1 className="text-sm font-bold text-primary tracking-widest uppercase">{portfolioName}</h1>
             <p className="text-xs text-tertiary mt-0.5">{today}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -326,24 +359,14 @@ export default function Dashboard({ initialHoldings }: Props) {
                     Add holding
                   </button>
                   <button
-                    onClick={() => { setAdminOpen(false); setCSVImportOpen(true); }}
+                    onClick={() => { setAdminOpen(false); setImportPickerOpen(true); }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
                     style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
                   >
                     <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                     </svg>
-                    Import CSV
-                  </button>
-                  <button
-                    onClick={() => { setAdminOpen(false); setHistoricalImportOpen(true); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
-                    style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
-                  >
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Import history
+                    Import
                   </button>
                   <button
                     onClick={() => { setAdminOpen(false); setMacroContextOpen(true); }}
@@ -368,6 +391,16 @@ export default function Dashboard({ initialHoldings }: Props) {
                     </button>
                   )}
                   <div className="my-1 border-t" style={{ borderColor: 'var(--color-border)' }} />
+                  <button
+                    onClick={() => { setAdminOpen(false); setRenameValue(portfolioName); setRenameOpen(true); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-surface-secondary transition-colors"
+                    style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
+                  >
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                    </svg>
+                    Rename portfolio
+                  </button>
                   <button
                     onClick={() => {
                       const next = !gateEnabled;
@@ -517,6 +550,15 @@ export default function Dashboard({ initialHoldings }: Props) {
         />
       )}
 
+      {/* Import picker */}
+      {importPickerOpen && (
+        <ImportPickerModal
+          onClose={() => setImportPickerOpen(false)}
+          onPickHoldings={() => { setImportPickerOpen(false); setCSVImportOpen(true); }}
+          onPickHistory={() => { setImportPickerOpen(false); setHistoricalImportOpen(true); }}
+        />
+      )}
+
       {/* Historical snapshot import modal */}
       {historicalImportOpen && (
         <HistoricalImportModal
@@ -528,6 +570,47 @@ export default function Dashboard({ initialHoldings }: Props) {
       {/* Macro context editor */}
       {macroContextOpen && (
         <MacroContextModal onClose={() => setMacroContextOpen(false)} />
+      )}
+
+      {/* Rename portfolio */}
+      {renameOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setRenameOpen(false)} />
+          <div
+            className="relative w-full max-w-sm mx-4 rounded-2xl shadow-2xl p-6 space-y-4"
+            style={{ backgroundColor: 'var(--color-surface)' }}
+          >
+            <h2 className="text-base font-semibold" style={{ color: 'var(--color-primary)' }}>
+              Rename portfolio
+            </h2>
+            <input
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              maxLength={100}
+              className="input w-full"
+              placeholder="Portfolio name"
+              disabled={renameSaving}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && renameValue.trim()) handleRenameSave();
+                if (e.key === 'Escape') setRenameOpen(false);
+              }}
+              autoFocus
+            />
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => setRenameOpen(false)} className="flex-1 btn-secondary" disabled={renameSaving}>
+                Cancel
+              </button>
+              <button
+                onClick={handleRenameSave}
+                className="flex-1 btn-primary"
+                disabled={renameSaving || !renameValue.trim()}
+              >
+                {renameSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Edit purchase dates */}

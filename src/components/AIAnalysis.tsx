@@ -32,15 +32,39 @@ const VERDICT_STYLES: Record<VerdictAction, { bg: string; text: string; label: s
   'SELL':          { bg: 'bg-red-100',    text: 'text-red-600',    label: 'SELL'          },
 };
 
-/** Minimal markdown → JSX: handles **bold**, ## headers, - bullets, newlines */
+/** Minimal markdown → JSX: handles **bold**, ## headers, - bullets, tables, --- rules, newlines */
 function renderMarkdown(text: string) {
   const lines = text.split('\n');
   const elements: React.ReactNode[] = [];
   let key = 0;
+  let i = 0;
 
-  for (const line of lines) {
+  while (i < lines.length) {
+    const line = lines[i];
+
     if (!line.trim()) {
       elements.push(<div key={key++} className="h-2" />);
+      i++;
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^-{3,}$/.test(line.trim())) {
+      elements.push(<hr key={key++} className="border-dashed border-gray-300" style={{ marginTop: 30, marginBottom: 30 }} />);
+      i++;
+      // Consume the blank line the model places after --- so it doesn't add space below
+      if (i < lines.length && !lines[i].trim()) i++;
+      continue;
+    }
+
+    // # Top-level heading
+    if (line.startsWith('# ') && !line.startsWith('## ')) {
+      elements.push(
+        <p key={key++} className="text-sm font-bold text-primary mt-2 mb-1">
+          {line.slice(2)}
+        </p>,
+      );
+      i++;
       continue;
     }
 
@@ -51,15 +75,66 @@ function renderMarkdown(text: string) {
           {line.slice(4)}
         </p>,
       );
+      i++;
       continue;
     }
 
     // ## Heading
     if (line.startsWith('## ')) {
       elements.push(
-        <p key={key++} className="text-xs font-bold uppercase tracking-wide text-secondary mt-4 mb-1 border-t border-gray-100 pt-3">
+        <p key={key++} className="text-xs font-bold uppercase tracking-wide text-secondary mt-3 mb-1">
           {line.slice(3)}
         </p>,
+      );
+      i++;
+      continue;
+    }
+
+    // Table — collect all consecutive | lines
+    if (line.startsWith('|')) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trimStart().startsWith('|')) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+
+      const rows = tableLines.map((l) =>
+        l.split('|').slice(1, -1).map((cell) => cell.trim()),
+      );
+
+      const sepIdx = rows.findIndex((row) => row.every((cell) => /^[-: ]+$/.test(cell)));
+      const headerRows = sepIdx > 0 ? rows.slice(0, sepIdx) : [];
+      const bodyRows = sepIdx >= 0 ? rows.slice(sepIdx + 1) : rows;
+
+      elements.push(
+        <div key={key++} className="overflow-x-auto my-2 rounded-lg border border-gray-100">
+          <table className="w-full text-xs border-collapse">
+            {headerRows.length > 0 && (
+              <thead>
+                {headerRows.map((row, ri) => (
+                  <tr key={ri} className="bg-gray-50 border-b border-gray-200">
+                    {row.map((cell, ci) => (
+                      <th key={ci} className="text-left py-2 px-3 font-semibold text-secondary">
+                        {inlineBold(cell)}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+            )}
+            <tbody>
+              {bodyRows.map((row, ri) => (
+                <tr key={ri} className={`border-b border-gray-100 last:border-0 ${ri % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
+                  {row.map((cell, ci) => (
+                    <td key={ci} className="py-2 px-3 text-primary leading-snug align-top">
+                      {inlineBold(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
       );
       continue;
     }
@@ -79,6 +154,7 @@ function renderMarkdown(text: string) {
             <span className="text-primary">{inlineBold(rest.replace(/^\s*[—–-]\s*/, ''))}</span>
           </div>,
         );
+        i++;
         continue;
       }
       elements.push(
@@ -87,6 +163,7 @@ function renderMarkdown(text: string) {
           <span>{inlineBold(line.slice(2))}</span>
         </div>,
       );
+      i++;
       continue;
     }
 
@@ -96,6 +173,7 @@ function renderMarkdown(text: string) {
         {inlineBold(line)}
       </p>,
     );
+    i++;
   }
 
   return elements;
@@ -198,7 +276,11 @@ export default function AIAnalysis({ holdings, lang }: Props) {
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          const remaining = decoder.decode();
+          if (remaining) setText((prev) => prev + remaining);
+          break;
+        }
         setText((prev) => {
           const next = prev + decoder.decode(value, { stream: true });
           // Auto-scroll to bottom as text streams in

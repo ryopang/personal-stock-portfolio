@@ -124,15 +124,13 @@ export default function PortfolioSummary({
         <p className={`text-3xl md:text-4xl font-bold tabular-nums tracking-tight ${valueColor}`}>
           {hidden ? '••••••' : formatCurrencyWhole(totals.totalValue)}
         </p>
-        {!hidden && (
-          <PriceChange
-            value={totals.dailyChange}
-            percent={totals.dailyChangePercent}
-            format="both"
-            noDecimals
-            size="md"
-          />
-        )}
+        <PriceChange
+          value={totals.dailyChange}
+          percent={totals.dailyChangePercent}
+          format={hidden ? 'currency' : 'both'}
+          noDecimals
+          size="md"
+        />
       </div>
 
       {/* Row 3: secondary metrics bar */}

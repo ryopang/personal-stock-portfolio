@@ -86,9 +86,10 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ### Admin
 - **Macro context editor** — write free-form market commentary (e.g., current rate environment, sector outlook) that is stored in Redis and automatically injected into every AI analysis prompt; keeps AI context current without changing code
+- **Rename portfolio** — edit the portfolio display name shown in the header; saved to Redis and reflected immediately without a page reload
 - **Password gate toggle** — enable or disable the client-side password gate from the Admin menu without redeploying
 - **Bulk edit purchase dates** — update purchase dates across multiple lots in a single modal
-- **Import/Export** — CSV import for holdings and historical snapshot import for the trend chart
+- **Import** — unified entry that routes to CSV holdings import or historical snapshot import via a picker modal
 - **Clear all holdings** — destructive wipe protected by a typed confirmation
 
 ### UX Details
@@ -105,6 +106,15 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 ---
 
 ## Changelog
+
+### June 2026 (latest)
+- **AI analysis no longer cuts off** — removed the `maxOutputTokens: 4000` hard cap from `streamText`; the model now runs to its natural stopping point. Also fixed a `TextDecoder` flush bug that could silently drop the last bytes of a streaming response (most visible in Traditional Chinese output)
+- **Markdown tables rendered as real tables** — `|`-delimited tables in AI analysis now render as proper HTML tables with a header row, alternating row backgrounds, and padding instead of raw pipe characters
+- **AI analysis `---` dividers** — section separators now render as a single dotted line with 30 px spacing above and below instead of appearing as raw dashes
+- **`#` heading support in AI analysis** — single-hash headings (e.g. `# 投資組合分析報告`) are now rendered as styled text instead of showing the literal `#`
+- **Portfolio summary initial state** — on page load the daily gain/loss **dollar amount** is now visible while the total portfolio value and percentage remain hidden; clicking the eye icon reveals everything as before
+- **Rename portfolio** — new Admin → "Rename portfolio" modal saves the portfolio name to Redis (`portfolio:name`) and updates the header immediately without a page reload
+- **Merged import menu items** — "Import CSV" and "Import history" collapsed into a single "Import" entry that opens a picker letting you choose between Holdings (positions CSV) and Historical snapshots (trend chart backfill)
 
 ### June 2026
 - **Per-lot tax classification in AI analysis** — each holding row in the AI prompt now includes the lot's exact purchase date and a `ST` (short-term, ≤1 year) or `LT` (long-term, >1 year) classification computed from today's date. Both English and Chinese system prompts updated to require the AI to use actual lot data instead of assuming all positions are long-term. This enables accurate NJ + federal tax cost estimates for any recommended sale.
@@ -197,6 +207,7 @@ src/
 │   │   ├── history/       # Per-symbol price history
 │   │   ├── holdings/      # CRUD for portfolio holdings
 │   │   ├── macro-context/ # Admin read/write for market commentary
+│   │   ├── portfolio-name/ # Admin read/write for portfolio display name
 │   │   ├── news/          # Market and portfolio news
 │   │   ├── portfolio/     # Snapshot read/write
 │   │   ├── quotes/        # Batch live price fetching
@@ -213,6 +224,7 @@ src/
 │   ├── AIAnalysis.tsx         # LLM analysis panel; provider selector
 │   ├── InvestmentChatbot.tsx  # Floating portfolio-aware chatbot; provider selector
 │   ├── MacroContextModal.tsx  # Admin editor for Redis-backed macro commentary
+│   ├── ImportPickerModal.tsx  # Picker modal routing to CSV or historical import
 │   ├── EditPurchaseDatesModal.tsx  # Bulk purchase date editor
 │   ├── ConfirmModal.tsx       # Reusable typed-confirmation dialog
 │   ├── Toasts.tsx             # Global toast notification system
