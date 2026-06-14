@@ -108,13 +108,13 @@ function renderMarkdown(text: string) {
 
       elements.push(
         <div key={key++} className="overflow-x-auto my-2 rounded-lg border border-gray-100">
-          <table className="w-full text-xs border-collapse">
+          <table className="text-xs border-collapse" style={{ minWidth: '100%', width: 'max-content' }}>
             {headerRows.length > 0 && (
               <thead>
                 {headerRows.map((row, ri) => (
                   <tr key={ri} className="bg-gray-50 border-b border-gray-200">
                     {row.map((cell, ci) => (
-                      <th key={ci} className="text-left py-2 px-3 font-semibold text-secondary">
+                      <th key={ci} className="text-left py-2.5 px-4 font-semibold text-secondary whitespace-nowrap">
                         {inlineBold(cell)}
                       </th>
                     ))}
@@ -126,7 +126,7 @@ function renderMarkdown(text: string) {
               {bodyRows.map((row, ri) => (
                 <tr key={ri} className={`border-b border-gray-100 last:border-0 ${ri % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
                   {row.map((cell, ci) => (
-                    <td key={ci} className="py-2 px-3 text-primary leading-snug align-top">
+                    <td key={ci} className="py-2.5 px-4 text-primary leading-snug align-top whitespace-nowrap">
                       {inlineBold(cell)}
                     </td>
                   ))}
