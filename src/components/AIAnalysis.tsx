@@ -107,12 +107,12 @@ function renderMarkdown(text: string) {
       const bodyRows = sepIdx >= 0 ? rows.slice(sepIdx + 1) : rows;
 
       elements.push(
-        <div key={key++} className="overflow-x-auto my-2 rounded-lg border border-gray-100">
+        <div key={key++} className="overflow-x-auto my-2 rounded-lg border border-border">
           <table className="text-xs border-collapse" style={{ minWidth: '100%', width: 'max-content' }}>
             {headerRows.length > 0 && (
               <thead>
                 {headerRows.map((row, ri) => (
-                  <tr key={ri} className="bg-gray-50 border-b border-gray-200">
+                  <tr key={ri} className="bg-surface-secondary border-b border-border">
                     {row.map((cell, ci) => (
                       <th key={ci} className="text-left py-2.5 px-4 font-semibold text-secondary whitespace-nowrap">
                         {inlineBold(cell)}
@@ -124,7 +124,7 @@ function renderMarkdown(text: string) {
             )}
             <tbody>
               {bodyRows.map((row, ri) => (
-                <tr key={ri} className={`border-b border-gray-100 last:border-0 ${ri % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
+                <tr key={ri} className={`border-b border-border last:border-0 ${ri % 2 === 1 ? 'bg-surface-secondary' : ''}`}>
                   {row.map((cell, ci) => (
                     <td key={ci} className="py-2.5 px-4 text-primary leading-snug align-top whitespace-nowrap">
                       {inlineBold(cell)}
