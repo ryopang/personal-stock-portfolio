@@ -115,6 +115,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 - **Portfolio summary initial state** — on page load the daily gain/loss **dollar amount** is now visible while the total portfolio value and percentage remain hidden; clicking the eye icon reveals everything as before
 - **Rename portfolio** — new Admin → "Rename portfolio" modal saves the portfolio name to Redis (`portfolio:name`) and updates the header immediately without a page reload
 - **Merged import menu items** — "Import CSV" and "Import history" collapsed into a single "Import" entry that opens a picker letting you choose between Holdings (positions CSV) and Historical snapshots (trend chart backfill)
+- **AI analysis table styling fixes** — tables now use theme-aware tokens (`bg-surface-secondary`, `border-border`) so they render correctly in both light and dark mode; column widths use `w-full` with `whitespace-nowrap` on the first column only, preventing horizontal scroll on narrow two-column tables (e.g. the "Do Nothing List") while keeping ticker names on one line
 
 ### June 2026
 - **Per-lot tax classification in AI analysis** — each holding row in the AI prompt now includes the lot's exact purchase date and a `ST` (short-term, ≤1 year) or `LT` (long-term, >1 year) classification computed from today's date. Both English and Chinese system prompts updated to require the AI to use actual lot data instead of assuming all positions are long-term. This enables accurate NJ + federal tax cost estimates for any recommended sale.
