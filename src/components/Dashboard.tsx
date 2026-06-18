@@ -57,7 +57,7 @@ export default function Dashboard({ initialHoldings }: Props) {
   const [activeView, setActiveView] = useState<'portfolio' | 'charts' | 'analysis'>('portfolio');
   const [moverFilter, setMoverFilter] = useState<'gainers' | 'losers' | null>(null);
   const [alertFilter, setAlertFilter] = useState(false);
-  const [lang, setLang] = useState<'en' | 'zh-TW'>('zh-TW');
+  const [lang, setLang] = useState<'en' | 'zh-TW'>(DEMO_MODE ? 'en' : 'zh-TW');
   const [adminOpen, setAdminOpen] = useState(false);
   const [gateEnabled, setGateEnabled] = useState(() =>
     typeof window !== 'undefined'
