@@ -70,14 +70,14 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
   - Watch items that carry forward between runs
   - Benchmark comparison against VTI/VOO (YTD and 1-year)
   - **Tax implication analysis** — each lot's purchase date and ST/LT classification (short-term ≤1 year, long-term >1 year) is included in the prompt; the AI applies NJ + federal tax rules to every sell recommendation
-- **Provider selector** — choose from **Gemini 2.5 Flash**, **Groq (Llama 3.3 70B)**, **Claude Sonnet 4.6**, or **Claude Opus 4.8** per session
+- **Provider selector** — choose from **Gemini 3.5 Flash**, **Groq (Llama 3.3 70B)**, **Claude Sonnet 4.6**, or **Claude Opus 4.8** per session
 - Analysis is **persisted to Redis** and survives page reloads; a "Regenerate" button refreshes it on demand
 - **AI rate limiting** — 20 requests per hour per IP to protect against token abuse
 
 ### Investment Advisor Chatbot
 - **Floating chat panel** — always-accessible button in the bottom-right corner; the page blurs behind the panel when it is open
 - **Portfolio-aware context** — the LLM receives your full holdings, allocations, cost bases, and today's performance figures so answers are grounded in your actual situation
-- **Multi-LLM** — switch between Gemini 2.5 Flash, Groq (Llama 3.3), Claude Sonnet 4.6, and Claude Opus 4.8 mid-session via the in-header dropdown
+- **Multi-LLM** — switch between Gemini 3.5 Flash, Groq (Llama 3.3), Claude Sonnet 4.6, and Claude Opus 4.8 mid-session via the in-header dropdown
 - **Streaming responses** with a stop button; a typing indicator appears while waiting for the first token
 - **Suggested starter questions** — generic investing questions when the portfolio is empty; portfolio-specific prompts (concentration risk, drawdown analysis, trimming candidates) when holdings are loaded
 - **Markdown rendering** — section headings, bullet lists, inline bold; tickers, percentages, and dollar amounts are syntax-highlighted in distinct colors
@@ -107,7 +107,10 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ## Changelog
 
-### June 2026 (latest)
+### July 2026 (latest)
+- **Gemini upgraded to 3.5 Flash** — the `gemini` provider now targets `gemini-3.5-flash` instead of the retired `gemini-2.5-flash`. Google moved Pro-series models to paid-only on April 1, 2026, but Flash-class models (including 3.5 Flash) remain free via Google AI Studio; this keeps the free-tier provider on Google's current recommended model
+
+### June 2026
 - **AI analysis no longer cuts off** — removed the `maxOutputTokens: 4000` hard cap from `streamText`; the model now runs to its natural stopping point. Also fixed a `TextDecoder` flush bug that could silently drop the last bytes of a streaming response (most visible in Traditional Chinese output)
 - **Markdown tables rendered as real tables** — `|`-delimited tables in AI analysis now render as proper HTML tables with a header row, alternating row backgrounds, and padding instead of raw pipe characters
 - **AI analysis `---` dividers** — section separators now render as a single dotted line with 30 px spacing above and below instead of appearing as raw dashes
@@ -167,7 +170,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 | Stock/crypto data | yahoo-finance2 |
 | Persistence | Upstash Redis |
 | AI (streaming) | Vercel AI SDK (`ai` + `@ai-sdk/*`) |
-| AI providers | Gemini 2.5 Flash · Groq Llama 3.3 70B · Claude Sonnet 4.6 · Claude Opus 4.8 |
+| AI providers | Gemini 3.5 Flash · Groq Llama 3.3 70B · Claude Sonnet 4.6 · Claude Opus 4.8 |
 | Rate limiting | @upstash/ratelimit |
 | Deployment | Vercel |
 
@@ -274,7 +277,7 @@ UPSTASH_REDIS_REST_URL=your_upstash_url
 UPSTASH_REDIS_REST_TOKEN=your_upstash_token
 
 # AI providers — at least one required; set all to enable provider switching in the UI
-GEMINI_API_KEY=your_google_ai_studio_key    # Gemini 2.5 Flash
+GEMINI_API_KEY=your_google_ai_studio_key    # Gemini 3.5 Flash
 GROQ_API_KEY=your_groq_api_key              # Groq / Llama 3.3 70B
 ANTHROPIC_API_KEY=your_anthropic_key        # Claude Sonnet 4.6 + Opus 4.8
 

@@ -12,7 +12,7 @@ type Status = 'idle' | 'streaming' | 'done' | 'error';
 type Provider = 'gemini' | 'groq' | 'claude-sonnet' | 'claude-opus';
 
 const PROVIDERS: { id: Provider; label: string }[] = [
-  { id: 'gemini',        label: 'Gemini 2.5 Flash'  },
+  { id: 'gemini',        label: 'Gemini 3.5 Flash'  },
   { id: 'groq',          label: 'Groq (Llama 3.3)'  },
   { id: 'claude-sonnet', label: 'Claude Sonnet 4.6' },
   { id: 'claude-opus',   label: 'Claude Opus 4.8'   },

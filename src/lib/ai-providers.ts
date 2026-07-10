@@ -15,10 +15,10 @@ interface ProviderConfig {
 
 const PROVIDERS: Record<ProviderKey, ProviderConfig> = {
   gemini: {
-    label: 'Gemini 2.5 Flash',
+    label: 'Gemini 3.5 Flash',
     envKey: 'GEMINI_API_KEY',
     keyHint: 'Get a free key at aistudio.google.com',
-    createModel: (apiKey) => createGoogleGenerativeAI({ apiKey })('gemini-2.5-flash'),
+    createModel: (apiKey) => createGoogleGenerativeAI({ apiKey })('gemini-3.5-flash'),
   },
   groq: {
     label: 'Groq (Llama 3.3)',
