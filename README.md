@@ -96,7 +96,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 - **Dark mode by default** — new visitors start in dark mode; the toggle (sun/moon icon) persists the preference to `localStorage`
 - **Global privacy mode** — eye icon in the header blurs all monetary values site-wide (useful for screen sharing); separate from the summary card's per-field toggle
 - **Portfolio value toggle** — eye button on the summary card selectively hides sensitive figures (total value, invested, P&L amounts; today's daily change keeps the dollar amount but hides the percent); hidden by default on page load
-- **Password gate** — lightweight client-side access control; session persists via `sessionStorage` so you don't re-enter on reload
+- **Password gate** — lightweight client-side access control; session persists via `sessionStorage` so you don't re-enter on reload. The lock screen shows a live daily gain/loss badge (green/red, `$K` format) so you can check performance at a glance without unlocking
 - **Toast notifications** — success and error feedback for add, edit, delete, and import operations
 - **Accessible modals** — Escape key closes any open modal; focus-visible rings on all interactive elements; ARIA labels on icon buttons and SVG indicators
 - **Sticky header** — portfolio summary, view tabs, and type/industry filter bar all remain visible while scrolling
@@ -108,6 +108,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 ## Changelog
 
 ### July 2026 (latest)
+- **Daily gain/loss badge on the lock screen** — the password gate now shows a green/red `▲/▼ ±$X.XK today` badge so you can see how the portfolio is doing without unlocking. Reads from the same Zustand store + SWR quote cache Dashboard already populates, so it adds no extra Yahoo Finance requests; the Redis daily-snapshot write (previously tied to the same hook) was split out into a separate `usePortfolio()` wrapper so mounting the read-only badge doesn't double-write snapshots
 - **Gemini upgraded to 3.5 Flash** — the `gemini` provider now targets `gemini-3.5-flash` instead of the retired `gemini-2.5-flash`. Google moved Pro-series models to paid-only on April 1, 2026, but Flash-class models (including 3.5 Flash) remain free via Google AI Studio; this keeps the free-tier provider on Google's current recommended model
 
 ### June 2026

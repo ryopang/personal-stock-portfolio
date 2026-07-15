@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, FormEvent } from 'react';
+import { usePortfolioData } from '@/hooks/usePortfolio';
+import { formatCurrencyK } from '@/lib/formatters';
 
 const SESSION_KEY = 'portfolio_unlocked';
 
@@ -15,6 +17,14 @@ export default function PasswordGate({ children }: { children: React.ReactNode }
   const [input, setInput] = useState('');
   const [error, setError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Shares the same Zustand store + SWR cache as Dashboard, so this doesn't
+  // trigger an extra quote fetch — it just reads whatever Dashboard already loaded.
+  const { totals, holdingsWithMetrics } = usePortfolioData();
+  const dataReady = holdingsWithMetrics.length > 0;
+  const isGain = totals.dailyChange > 0;
+  const isLoss = totals.dailyChange < 0;
+  const dailyChangeSign = isGain ? '+' : isLoss ? '-' : '';
 
   useEffect(() => {
     // Small delay so the overlay is painted before we focus
@@ -72,7 +82,6 @@ export default function PasswordGate({ children }: { children: React.ReactNode }
               textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: '2rem', marginBottom: '0.625rem' }}>🔒</div>
             <h1
               style={{
                 fontSize: '1.125rem',
@@ -83,15 +92,40 @@ export default function PasswordGate({ children }: { children: React.ReactNode }
             >
               Portfolio Tracker
             </h1>
-            <p
-              style={{
-                fontSize: '0.8125rem',
-                color: 'var(--color-secondary)',
-                margin: '0 0 1.5rem',
-              }}
-            >
-              Enter your password to view
-            </p>
+
+            {dataReady ? (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  margin: '0.625rem 0 1.25rem',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '999px',
+                  fontSize: '1.0625rem',
+                  fontWeight: 700,
+                  backgroundColor: isGain ? '#dcfce7' : isLoss ? '#fee2e2' : 'var(--color-surface-secondary)',
+                  color: isGain ? '#34C759' : isLoss ? '#FF3B30' : 'var(--color-secondary)',
+                }}
+              >
+                <span style={{ fontSize: '0.875em' }}>{isGain ? '▲' : isLoss ? '▼' : '–'}</span>
+                <span>
+                  {dailyChangeSign}
+                  {formatCurrencyK(Math.abs(totals.dailyChange))} today
+                </span>
+              </div>
+            ) : (
+              <div
+                className="animate-pulse"
+                style={{
+                  height: '2.25rem',
+                  width: '11rem',
+                  borderRadius: '999px',
+                  backgroundColor: 'var(--color-surface-secondary)',
+                  margin: '0.625rem auto 1.25rem',
+                }}
+              />
+            )}
 
             <form
               onSubmit={handleSubmit}

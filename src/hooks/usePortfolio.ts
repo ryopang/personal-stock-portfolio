@@ -18,7 +18,10 @@ interface UsePortfolioReturn {
   missingQuoteSymbols: string[];
 }
 
-export function usePortfolio(): UsePortfolioReturn {
+// Read-only: holdings + live quotes -> metrics/totals, no side effects.
+// Safe to call from multiple components at once — the underlying SWR
+// fetch is deduped by symbol key, so this doesn't trigger extra requests.
+export function usePortfolioData(): UsePortfolioReturn {
   const holdings = usePortfolioStore((s) => s.holdings);
   const { quotes, isLoading, isRefreshing, error, refresh, lastUpdated } = useQuotes(holdings);
 
@@ -56,6 +59,24 @@ export function usePortfolio(): UsePortfolioReturn {
     () => computePortfolioTotals(holdingsWithMetrics),
     [holdingsWithMetrics]
   );
+
+  return {
+    holdingsWithMetrics,
+    totals,
+    isLoading,
+    isRefreshing,
+    error,
+    refresh,
+    lastUpdated,
+    missingQuoteSymbols,
+  };
+}
+
+// Adds the daily-snapshot write on top of usePortfolioData. Only Dashboard
+// should use this — mounting it more than once would double-write snapshots.
+export function usePortfolio(): UsePortfolioReturn {
+  const data = usePortfolioData();
+  const { holdingsWithMetrics, totals, lastUpdated } = data;
 
   // Refs hold the latest values without making them effect dependencies.
   // This ensures the effect only fires when lastUpdated changes (new quote fetch),
@@ -96,14 +117,5 @@ export function usePortfolio(): UsePortfolioReturn {
     }).catch(console.error);
   }, [lastUpdated]);
 
-  return {
-    holdingsWithMetrics,
-    totals,
-    isLoading,
-    isRefreshing,
-    error,
-    refresh,
-    lastUpdated,
-    missingQuoteSymbols,
-  };
+  return data;
 }
