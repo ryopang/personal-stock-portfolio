@@ -54,16 +54,24 @@ async function computeDemoSnapshots(days: number): Promise<DailySnapshot[]> {
   }
 
   const snapshots: DailySnapshot[] = [];
+  // Forward-fill prices across non-trading days (weekends/holidays) so stocks/ETFs
+  // (Mon-Fri only) don't drop out of the total while crypto (7-day) keeps updating —
+  // otherwise the portfolio value falsely craters to crypto-only on every weekend.
+  const lastKnownPrice = new Map<string, number>();
 
   for (const dateStr of [...priceMap.keys()].sort()) {
     const dayPrices = priceMap.get(dateStr)!;
+    for (const [symbol, price] of dayPrices) {
+      lastKnownPrice.set(symbol, price);
+    }
+
     const byIndustry: Record<string, { value: number; totalGain: number }> = {};
     let totalValue = 0;
     let totalCost = 0;
 
     for (const lot of DEMO_HOLDINGS) {
       const yahooSym = toYahooSymbol(lot.symbol, lot.type);
-      const price = dayPrices.get(yahooSym);
+      const price = lastKnownPrice.get(yahooSym);
       if (price == null) continue;
 
       const value = lot.quantity * price;
