@@ -9,7 +9,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 <img width="800" height="990" alt="Screenshot 2026-07-31 at 10 47 06 AM" src="https://github.com/user-attachments/assets/0959a4b4-bfe5-4fb8-98ab-c00caa0b20d6" />  
 
-
+---
 ## Features
 
 ### Holdings Management
