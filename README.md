@@ -3,7 +3,7 @@
 A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, and crypto in one place — with real-time quotes, performance charts, AI-powered analysis, and a portfolio-aware investment advisor chatbot.
 
 ---
-<img width="800" height="742" alt="Screenshot 2026-07-31 at 10 46 47 AM" src="https://github.com/user-attachments/assets/ff6988a7-c80e-4079-ac11-218b4d6954d4" /> <br><br><br>
+<img width="800" height="742" alt="Screenshot 2026-07-31 at 10 46 47 AM" src="https://github.com/user-attachments/assets/ff6988a7-c80e-4079-ac11-218b4d6954d4" /> 
 
 <img width="800" height="1142" alt="Screenshot 2026-07-31 at 10 46 57 AM" src="https://github.com/user-attachments/assets/724e5efb-263b-4c69-8911-2ec0eca20fd5" />  
 
