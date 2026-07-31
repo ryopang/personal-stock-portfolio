@@ -4,15 +4,11 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ---
 
-<img width="1000" height="928" alt="Screenshot 2026-07-31 at 10 46 47 AM" src="https://github.com/user-attachments/assets/10588507-bf7e-4e38-9fd5-9b90826f197d" />
+<img width="400" height="371" alt="Screenshot 2026-07-31 at 10 46 47 AM" src="https://github.com/user-attachments/assets/ff6988a7-c80e-4079-ac11-218b4d6954d4" />  
 
+<img width="400" height="571" alt="Screenshot 2026-07-31 at 10 46 57 AM" src="https://github.com/user-attachments/assets/724e5efb-263b-4c69-8911-2ec0eca20fd5" />  
 
-
-<img width="999" height="1426" alt="Screenshot 2026-07-31 at 10 46 57 AM" src="https://github.com/user-attachments/assets/4b0726a5-fde8-45cb-af89-019fe4379d8f" />
-
-
-
-<img width="997" height="1236" alt="Screenshot 2026-07-31 at 10 47 06 AM" src="https://github.com/user-attachments/assets/d7579f60-bb44-4a6a-8822-713aa1372cf9" />
+<img width="399" height="495" alt="Screenshot 2026-07-31 at 10 47 06 AM" src="https://github.com/user-attachments/assets/0959a4b4-bfe5-4fb8-98ab-c00caa0b20d6" />  
 
 ---
 
