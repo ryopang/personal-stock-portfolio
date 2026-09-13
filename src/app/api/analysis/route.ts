@@ -18,6 +18,11 @@ import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_ANALYSIS_TEXT } from '@/lib/demo-data';
 
 export const dynamic = 'force-dynamic';
+// Without this, Vercel caps the function at its plan's default (10s on
+// Hobby) — nowhere near enough for a full multi-part analysis, especially
+// from a reasoning model that spends time thinking before the first token.
+// 60s is the max allowed on Hobby; raise it if the account is on Pro/Enterprise.
+export const maxDuration = 60;
 
 const CACHE_KEY = 'portfolio:analysis';
 
@@ -119,6 +124,8 @@ export async function POST(req: NextRequest) {
     model: provider.model,
     system: lang === 'zh-TW' ? ANALYSIS_SYSTEM_PROMPT_ZH : ANALYSIS_SYSTEM_PROMPT_EN,
     prompt,
+    maxOutputTokens: 8192,
+    providerOptions: provider.providerOptions,
     onError: ({ error }) => console.error('[POST /api/analysis]', error),
     onFinish: async ({ text }) => {
       if (text) {
@@ -140,7 +147,7 @@ export async function POST(req: NextRequest) {
       try {
         for await (const part of result.fullStream) {
           if (part.type === 'text-delta') {
-            controller.enqueue(encoder.encode(part.delta));
+            controller.enqueue(encoder.encode(part.text));
           } else if (part.type === 'error') {
             const message = part.error instanceof Error ? part.error.message : String(part.error);
             controller.enqueue(encoder.encode(`\n\n⚠️ Analysis failed: ${message}`));

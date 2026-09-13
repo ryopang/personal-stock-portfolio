@@ -10,6 +10,8 @@ import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_CHAT_RESPONSES } from '@/lib/demo-data';
 
 export const dynamic = 'force-dynamic';
+// See src/app/api/analysis/route.ts — same reasoning-model timeout risk.
+export const maxDuration = 60;
 
 // Stream a canned response in the UI message stream format that useChat expects.
 // Format: SSE with data: JSON lines and x-vercel-ai-ui-message-stream: v1 header.
@@ -105,6 +107,7 @@ export async function POST(req: NextRequest) {
     system: CHAT_SYSTEM_PROMPT + formatMacroSection(macro) + portfolioContext + langInstruction,
     messages: await convertToModelMessages(messages),
     maxOutputTokens: 4096,
+    providerOptions: provider.providerOptions,
     onError: ({ error }) => console.error('[POST /api/chat]', error),
   });
 
