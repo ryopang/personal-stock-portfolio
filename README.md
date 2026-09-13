@@ -2,6 +2,8 @@
 
 A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, and crypto in one place — with real-time quotes, performance charts, AI-powered analysis, and a portfolio-aware investment advisor chatbot.
 
+**🔴 [Live Demo](https://porftolio-tracker-demo.vercel.app)** — a public, read-only deployment with a pre-loaded sample portfolio (stocks, ETFs, and crypto), real live Yahoo Finance quotes, and all charts and views fully interactive. No login, no setup, no API keys needed. AI analysis and chatbot responses are static pre-written content in this mode (see [Demo Mode](#demo-mode) below) rather than live LLM calls.
+
 ---
 
 <p align="center">
@@ -102,6 +104,13 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 - **Import** — unified entry that routes to CSV holdings import or historical snapshot import via a picker modal
 - **Clear all holdings** — destructive wipe protected by a typed confirmation
 
+### Demo Mode
+- **[Live public demo](https://porftolio-tracker-demo.vercel.app)** — a separate Vercel deployment of the same codebase, gated behind `NEXT_PUBLIC_DEMO_MODE=true`, with zero data crossover to the real production portfolio
+- **Realistic sample portfolio** — 10 symbols (AAPL, MSFT, NVDA, AMZN, GOOGL, JPM, VTI, QQQ, BTC, ETH) across 18 tax lots with realistic cost bases, hardcoded at build time
+- **Real live data, no API keys** — quotes, 52-week ranges, and 90-day trend history are fetched live from Yahoo Finance same as production; no AI or Redis credentials are required to run the demo
+- **Static AI content** — the Analysis tab and Investment Advisor chatbot show pre-written example output instead of calling a real LLM, so the demo costs nothing in AI tokens and needs no `GEMINI_API_KEY`/`ANTHROPIC_API_KEY`
+- **Read-only by design** — Redis is swapped for a null stub and every mutation API route (add/edit/delete holdings, imports, admin settings) returns `403`; the password gate is skipped entirely and the Admin menu shows a "Demo mode — read only" banner with all write actions greyed out
+
 ### UX Details
 - **Dark mode by default** — new visitors start in dark mode; the toggle (sun/moon icon) persists the preference to `localStorage`
 - **Global privacy mode** — eye icon in the header blurs all monetary values site-wide (useful for screen sharing); separate from the summary card's per-field toggle
@@ -119,12 +128,14 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ### September 2026 (latest)
 - **AI providers refreshed, Groq removed** — `gemini` now targets `gemini-3.8-flash` (was 3.5 Flash), and both Claude providers moved to their current-generation successors: `claude-sonnet-5` (was Sonnet 4.6) and `claude-opus-5` (was Opus 4.8). The Groq provider was dropped entirely — Groq shut down free/dev-tier access to `llama-3.3-70b-versatile` on 2026-08-16 with no in-place replacement wired up — leaving three providers instead of four. `@ai-sdk/groq` removed from dependencies.
+- **README now links the live demo** — the public [demo deployment](https://porftolio-tracker-demo.vercel.app) (shipped June 2026, previously undocumented) now has a top-of-README link and a dedicated Demo Mode section describing how it works.
 
 ### July 2026
 - **Daily gain/loss badge on the lock screen** — the password gate now shows a green/red `▲/▼ ±$X.XK today` badge so you can see how the portfolio is doing without unlocking. Reads from the same Zustand store + SWR quote cache Dashboard already populates, so it adds no extra Yahoo Finance requests; the Redis daily-snapshot write (previously tied to the same hook) was split out into a separate `usePortfolio()` wrapper so mounting the read-only badge doesn't double-write snapshots
 - **Gemini upgraded to 3.5 Flash** — the `gemini` provider now targets `gemini-3.5-flash` instead of the retired `gemini-2.5-flash`. Google moved Pro-series models to paid-only on April 1, 2026, but Flash-class models (including 3.5 Flash) remain free via Google AI Studio; this keeps the free-tier provider on Google's current recommended model
 
 ### June 2026
+- **Public-facing demo mode** — a `NEXT_PUBLIC_DEMO_MODE=true` flag enables a fully isolated demo deployment from the same GitHub repo with zero data crossover to production: a hardcoded 10-symbol/18-lot sample portfolio, real live Yahoo Finance prices, static pre-written AI analysis/chatbot content (no token cost, no API keys), a null Redis stub, `403` on every mutation route, and a "Demo mode — read only" Admin banner with the password gate skipped
 - **AI analysis no longer cuts off** — removed the `maxOutputTokens: 4000` hard cap from `streamText`; the model now runs to its natural stopping point. Also fixed a `TextDecoder` flush bug that could silently drop the last bytes of a streaming response (most visible in Traditional Chinese output)
 - **Markdown tables rendered as real tables** — `|`-delimited tables in AI analysis now render as proper HTML tables with a header row, alternating row backgrounds, and padding instead of raw pipe characters
 - **AI analysis `---` dividers** — section separators now render as a single dotted line with 30 px spacing above and below instead of appearing as raw dashes
