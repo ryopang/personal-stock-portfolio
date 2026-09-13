@@ -9,13 +9,12 @@ interface Props {
 }
 
 type Status = 'idle' | 'streaming' | 'done' | 'error';
-type Provider = 'gemini' | 'groq' | 'claude-sonnet' | 'claude-opus';
+type Provider = 'gemini' | 'claude-sonnet' | 'claude-opus';
 
 const PROVIDERS: { id: Provider; label: string }[] = [
-  { id: 'gemini',        label: 'Gemini 3.5 Flash'  },
-  { id: 'groq',          label: 'Groq (Llama 3.3)'  },
-  { id: 'claude-sonnet', label: 'Claude Sonnet 4.6' },
-  { id: 'claude-opus',   label: 'Claude Opus 4.8'   },
+  { id: 'gemini',        label: 'Gemini 3.8 Flash' },
+  { id: 'claude-sonnet', label: 'Claude Sonnet 5'  },
+  { id: 'claude-opus',   label: 'Claude Opus 5'    },
 ];
 
 type VerdictAction = 'STRONG HOLD' | 'BUY MORE' | 'BUY' | 'HOLD' | 'MONITOR' | 'TRIM' | 'HARVEST LOSS' | 'CONSIDER EXIT' | 'EXIT' | 'SELL';

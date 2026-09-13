@@ -70,14 +70,14 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
   - Watch items that carry forward between runs
   - Benchmark comparison against VTI/VOO (YTD and 1-year)
   - **Tax implication analysis** — each lot's purchase date and ST/LT classification (short-term ≤1 year, long-term >1 year) is included in the prompt; the AI applies NJ + federal tax rules to every sell recommendation
-- **Provider selector** — choose from **Gemini 3.5 Flash**, **Groq (Llama 3.3 70B)**, **Claude Sonnet 4.6**, or **Claude Opus 4.8** per session
+- **Provider selector** — choose from **Gemini 3.8 Flash**, **Claude Sonnet 5**, or **Claude Opus 5** per session
 - Analysis is **persisted to Redis** and survives page reloads; a "Regenerate" button refreshes it on demand
 - **AI rate limiting** — 20 requests per hour per IP to protect against token abuse
 
 ### Investment Advisor Chatbot
 - **Floating chat panel** — always-accessible button in the bottom-right corner; the page blurs behind the panel when it is open
 - **Portfolio-aware context** — the LLM receives your full holdings, allocations, cost bases, and today's performance figures so answers are grounded in your actual situation
-- **Multi-LLM** — switch between Gemini 3.5 Flash, Groq (Llama 3.3), Claude Sonnet 4.6, and Claude Opus 4.8 mid-session via the in-header dropdown
+- **Multi-LLM** — switch between Gemini 3.8 Flash, Claude Sonnet 5, and Claude Opus 5 mid-session via the in-header dropdown
 - **Streaming responses** with a stop button; a typing indicator appears while waiting for the first token
 - **Suggested starter questions** — generic investing questions when the portfolio is empty; portfolio-specific prompts (concentration risk, drawdown analysis, trimming candidates) when holdings are loaded
 - **Markdown rendering** — section headings, bullet lists, inline bold; tickers, percentages, and dollar amounts are syntax-highlighted in distinct colors
@@ -107,7 +107,10 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ## Changelog
 
-### July 2026 (latest)
+### September 2026 (latest)
+- **AI providers refreshed, Groq removed** — `gemini` now targets `gemini-3.8-flash` (was 3.5 Flash), and both Claude providers moved to their current-generation successors: `claude-sonnet-5` (was Sonnet 4.6) and `claude-opus-5` (was Opus 4.8). The Groq provider was dropped entirely — Groq shut down free/dev-tier access to `llama-3.3-70b-versatile` on 2026-08-16 with no in-place replacement wired up — leaving three providers instead of four. `@ai-sdk/groq` removed from dependencies.
+
+### July 2026
 - **Daily gain/loss badge on the lock screen** — the password gate now shows a green/red `▲/▼ ±$X.XK today` badge so you can see how the portfolio is doing without unlocking. Reads from the same Zustand store + SWR quote cache Dashboard already populates, so it adds no extra Yahoo Finance requests; the Redis daily-snapshot write (previously tied to the same hook) was split out into a separate `usePortfolio()` wrapper so mounting the read-only badge doesn't double-write snapshots
 - **Gemini upgraded to 3.5 Flash** — the `gemini` provider now targets `gemini-3.5-flash` instead of the retired `gemini-2.5-flash`. Google moved Pro-series models to paid-only on April 1, 2026, but Flash-class models (including 3.5 Flash) remain free via Google AI Studio; this keeps the free-tier provider on Google's current recommended model
 
@@ -171,7 +174,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 | Stock/crypto data | yahoo-finance2 |
 | Persistence | Upstash Redis |
 | AI (streaming) | Vercel AI SDK (`ai` + `@ai-sdk/*`) |
-| AI providers | Gemini 3.5 Flash · Groq Llama 3.3 70B · Claude Sonnet 4.6 · Claude Opus 4.8 |
+| AI providers | Gemini 3.8 Flash · Claude Sonnet 5 · Claude Opus 5 |
 | Rate limiting | @upstash/ratelimit |
 | Deployment | Vercel |
 
@@ -187,7 +190,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 **Snapshots on demand** — each quote refresh writes a daily snapshot to Redis. This builds up a historical record over time that powers the trend chart, without requiring any scheduled jobs or background workers.
 
-**Four AI providers behind a unified SDK** — all four providers (Gemini, Groq, Claude Sonnet, Claude Opus) are registered in `src/lib/ai-providers.ts` and accessed through the Vercel AI SDK's `streamText`. Adding a new provider is a one-entry change to the registry. Responses stream token-by-token so the UI renders progressively.
+**Three AI providers behind a unified SDK** — Gemini, Claude Sonnet, and Claude Opus are registered in `src/lib/ai-providers.ts` and accessed through the Vercel AI SDK's `streamText`. Adding a new provider is a one-entry change to the registry. Responses stream token-by-token so the UI renders progressively.
 
 **Structured analyst persona, not a generic prompt** — both the English and Chinese system prompts encode a specific investment policy (buy-and-hold, NJ tax rules, no derivatives) and a six-part output structure. This produces consistent, actionable analysis rather than generic commentary. Per-lot purchase dates and ST/LT classification are injected into every prompt so tax cost estimates are based on actual hold times.
 
@@ -246,7 +249,7 @@ src/
 │   ├── yahoo.ts           # Yahoo Finance singleton
 │   ├── redis.ts           # Upstash Redis singleton
 │   ├── holdings-service.ts
-│   ├── ai-providers.ts    # Provider registry (Gemini, Groq, Claude Sonnet, Claude Opus)
+│   ├── ai-providers.ts    # Provider registry (Gemini, Claude Sonnet, Claude Opus)
 │   ├── prompts.ts         # All AI prompt text and builders
 │   ├── ratelimit.ts       # @upstash/ratelimit config (20 req/hr per IP)
 │   ├── macro-context.ts   # Redis read/write for macro commentary
@@ -278,15 +281,14 @@ UPSTASH_REDIS_REST_URL=your_upstash_url
 UPSTASH_REDIS_REST_TOKEN=your_upstash_token
 
 # AI providers — at least one required; set all to enable provider switching in the UI
-GEMINI_API_KEY=your_google_ai_studio_key    # Gemini 3.5 Flash
-GROQ_API_KEY=your_groq_api_key              # Groq / Llama 3.3 70B
-ANTHROPIC_API_KEY=your_anthropic_key        # Claude Sonnet 4.6 + Opus 4.8
+GEMINI_API_KEY=your_google_ai_studio_key    # Gemini 3.8 Flash
+ANTHROPIC_API_KEY=your_anthropic_key        # Claude Sonnet 5 + Opus 5
 
 # Optional: client-side password gate (baked into the bundle — not a real secret)
 NEXT_PUBLIC_DASHBOARD_PASSWORD=your_password
 ```
 
-Get keys at: [aistudio.google.com](https://aistudio.google.com) · [console.groq.com](https://console.groq.com) · [console.anthropic.com](https://console.anthropic.com)
+Get keys at: [aistudio.google.com](https://aistudio.google.com) · [console.anthropic.com](https://console.anthropic.com)
 
 ### Running Locally
 
