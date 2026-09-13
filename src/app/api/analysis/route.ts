@@ -131,5 +131,32 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return result.toTextStreamResponse({ headers: { 'Cache-Control': 'no-store' } });
+  // toTextStreamResponse() would silently end with zero bytes if the model
+  // call fails (e.g. auth/network error) — walk fullStream instead so a
+  // failure is visible in the UI rather than rendering as a blank panel.
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const part of result.fullStream) {
+          if (part.type === 'text-delta') {
+            controller.enqueue(encoder.encode(part.delta));
+          } else if (part.type === 'error') {
+            const message = part.error instanceof Error ? part.error.message : String(part.error);
+            controller.enqueue(encoder.encode(`\n\n⚠️ Analysis failed: ${message}`));
+          }
+        }
+      } catch (err) {
+        controller.enqueue(
+          encoder.encode(`\n\n⚠️ Analysis failed: ${err instanceof Error ? err.message : 'Unknown error'}`),
+        );
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
 }

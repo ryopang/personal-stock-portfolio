@@ -23,13 +23,16 @@ const PROVIDERS: Record<ProviderKey, ProviderConfig> = {
     label: 'Claude Sonnet 5',
     envKey: 'ANTHROPIC_API_KEY',
     keyHint: 'Get an API key at console.anthropic.com',
-    createModel: (apiKey) => createAnthropic({ apiKey })('claude-sonnet-5'),
+    // baseURL is pinned rather than left to the SDK default because a stray
+    // ANTHROPIC_BASE_URL env var (e.g. injected by Claude Code's own shell)
+    // overrides it and drops the required /v1 path, 404-ing every request.
+    createModel: (apiKey) => createAnthropic({ apiKey, baseURL: 'https://api.anthropic.com/v1' })('claude-sonnet-5'),
   },
   'claude-opus': {
     label: 'Claude Opus 5',
     envKey: 'ANTHROPIC_API_KEY',
     keyHint: 'Get an API key at console.anthropic.com',
-    createModel: (apiKey) => createAnthropic({ apiKey })('claude-opus-5'),
+    createModel: (apiKey) => createAnthropic({ apiKey, baseURL: 'https://api.anthropic.com/v1' })('claude-opus-5'),
   },
 };
 
