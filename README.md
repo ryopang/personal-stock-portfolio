@@ -126,7 +126,9 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ## Changelog
 
-### September 2026 (latest)
+### September 2026 (latest) — v0.1.1
+- **AI analysis was broken end-to-end; fixed three compounding bugs** — (1) `createAnthropic()` could inherit a stray `ANTHROPIC_BASE_URL` env var that drops the required `/v1` path and 404s every Claude request, so `baseURL` is now pinned explicitly; (2) the streaming response was reading the wrong field off the model's `fullStream` (`part.delta` instead of `part.text`), which failed the TypeScript build entirely — the fix silently shipped a broken production deployment while the previous one stayed live; (3) Claude Sonnet 5 / Opus 5 default to adaptive extended thinking, and for the full portfolio-analysis prompt that thinking budget could consume the entire output token limit before any visible text was produced, leaving a blank panel — capped with `effort: 'low'` so real text starts flowing early. Also added `maxDuration = 60` (the Hobby-plan max) to both AI routes, since neither declared one and Vercel was capping them at the 10s default — nowhere near enough for a multi-thousand-word report.
+- **Streaming errors now surface in the UI** — a failed model call used to render as a silent blank panel; `/api/analysis` now walks `fullStream` and writes a visible `⚠️ Analysis failed: …` message into the response instead of ending with zero bytes.
 - **AI providers refreshed, Groq removed** — `gemini` now targets `gemini-3.8-flash` (was 3.5 Flash), and both Claude providers moved to their current-generation successors: `claude-sonnet-5` (was Sonnet 4.6) and `claude-opus-5` (was Opus 4.8). The Groq provider was dropped entirely — Groq shut down free/dev-tier access to `llama-3.3-70b-versatile` on 2026-08-16 with no in-place replacement wired up — leaving three providers instead of four. `@ai-sdk/groq` removed from dependencies.
 - **README now links the live demo** — the public [demo deployment](https://porftolio-tracker-demo.vercel.app) (shipped June 2026, previously undocumented) now has a top-of-README link and a dedicated Demo Mode section describing how it works.
 
