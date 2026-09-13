@@ -5,7 +5,7 @@ import { useChat } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import type { HoldingWithMetrics } from '@/lib/types';
 
-type Provider = 'gemini' | 'groq' | 'claude-sonnet' | 'claude-opus';
+type Provider = 'gemini' | 'claude-sonnet' | 'claude-opus';
 
 interface Props {
   holdings: HoldingWithMetrics[];
@@ -13,10 +13,9 @@ interface Props {
 }
 
 const PROVIDERS: { id: Provider; label: string }[] = [
-  { id: 'gemini',        label: 'Gemini 3.5 Flash'  },
-  { id: 'groq',          label: 'Groq (Llama 3.3)'  },
-  { id: 'claude-sonnet', label: 'Claude Sonnet 4.6' },
-  { id: 'claude-opus',   label: 'Claude Opus 4.8'   },
+  { id: 'gemini',        label: 'Gemini 3.8 Flash' },
+  { id: 'claude-sonnet', label: 'Claude Sonnet 5'  },
+  { id: 'claude-opus',   label: 'Claude Opus 5'    },
 ];
 
 const GENERIC_QUESTIONS = [

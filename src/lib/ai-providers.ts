@@ -1,9 +1,8 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createGroq } from '@ai-sdk/groq';
 import type { LanguageModel } from 'ai';
 
-export const PROVIDER_KEYS = ['gemini', 'groq', 'claude-sonnet', 'claude-opus'] as const;
+export const PROVIDER_KEYS = ['gemini', 'claude-sonnet', 'claude-opus'] as const;
 export type ProviderKey = (typeof PROVIDER_KEYS)[number];
 
 interface ProviderConfig {
@@ -15,28 +14,22 @@ interface ProviderConfig {
 
 const PROVIDERS: Record<ProviderKey, ProviderConfig> = {
   gemini: {
-    label: 'Gemini 3.5 Flash',
+    label: 'Gemini 3.8 Flash',
     envKey: 'GEMINI_API_KEY',
     keyHint: 'Get a free key at aistudio.google.com',
-    createModel: (apiKey) => createGoogleGenerativeAI({ apiKey })('gemini-3.5-flash'),
-  },
-  groq: {
-    label: 'Groq (Llama 3.3)',
-    envKey: 'GROQ_API_KEY',
-    keyHint: 'Get a free key at console.groq.com',
-    createModel: (apiKey) => createGroq({ apiKey })('llama-3.3-70b-versatile'),
+    createModel: (apiKey) => createGoogleGenerativeAI({ apiKey })('gemini-3.8-flash'),
   },
   'claude-sonnet': {
-    label: 'Claude Sonnet 4.6',
+    label: 'Claude Sonnet 5',
     envKey: 'ANTHROPIC_API_KEY',
     keyHint: 'Get an API key at console.anthropic.com',
-    createModel: (apiKey) => createAnthropic({ apiKey })('claude-sonnet-4-6'),
+    createModel: (apiKey) => createAnthropic({ apiKey })('claude-sonnet-5'),
   },
   'claude-opus': {
-    label: 'Claude Opus 4.8',
+    label: 'Claude Opus 5',
     envKey: 'ANTHROPIC_API_KEY',
     keyHint: 'Get an API key at console.anthropic.com',
-    createModel: (apiKey) => createAnthropic({ apiKey })('claude-opus-4-8'),
+    createModel: (apiKey) => createAnthropic({ apiKey })('claude-opus-5'),
   },
 };
 
