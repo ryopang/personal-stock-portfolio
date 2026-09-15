@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     model: provider.model,
     system: CHAT_SYSTEM_PROMPT + formatMacroSection(macro) + portfolioContext + langInstruction,
     messages: await convertToModelMessages(messages),
-    maxOutputTokens: 4096,
+    maxOutputTokens: Math.min(provider.maxOutputTokens ?? 4096, 4096),
     providerOptions: provider.providerOptions,
     onError: ({ error }) => console.error('[POST /api/chat]', error),
   });

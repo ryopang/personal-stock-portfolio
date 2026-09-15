@@ -118,13 +118,14 @@ export async function POST(req: NextRequest) {
     benchmark,
     previousWatchlist: cached?.text ? extractWatchlist(cached.text) : null,
     macroSection: formatMacroSection(macro),
+    wordLimit: provider.wordLimit,
   });
 
   const result = streamText({
     model: provider.model,
     system: lang === 'zh-TW' ? ANALYSIS_SYSTEM_PROMPT_ZH : ANALYSIS_SYSTEM_PROMPT_EN,
     prompt,
-    maxOutputTokens: 8192,
+    maxOutputTokens: provider.maxOutputTokens ?? 8192,
     providerOptions: provider.providerOptions,
     onError: ({ error }) => console.error('[POST /api/analysis]', error),
     onFinish: async ({ text }) => {

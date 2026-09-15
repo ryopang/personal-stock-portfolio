@@ -12,13 +12,19 @@ interface ProviderConfig {
   envKey: string;
   keyHint: string;
   createModel: (apiKey: string) => LanguageModel;
-  // Claude 5 models default to adaptive extended thinking, and for a long,
-  // instruction-heavy prompt (like the full portfolio analysis) that budget
-  // can consume the entire output token limit before any visible text is
-  // produced — "thinking: disabled" doesn't reliably override this for
-  // complex prompts, so effort is capped instead to bound (not eliminate)
-  // reasoning and guarantee room for the actual answer.
+  // Claude 5 only supports `thinking.type: 'adaptive'` — the API itself
+  // rejects 'enabled' with a fixed budgetTokens, and 'disabled' has no real
+  // effect (the SDK just omits the param, so the model's default reasoning
+  // still runs). 'adaptive' + a low `effort` is the only lever, and it's a
+  // soft one: for the full 6-part analysis prompt, combined reasoning+text
+  // generation routinely exceeds Vercel Hobby's 60s function limit before
+  // finishing. maxOutputTokens alone can't fix this — cutting it just cuts
+  // the request off mid-answer instead of timing out. `wordLimit` (passed
+  // into buildAnalysisPrompt) is what actually keeps requests fast, by
+  // asking the model for a shorter answer instead of interrupting a long one.
   providerOptions?: ProviderOptions;
+  maxOutputTokens?: number;
+  wordLimit?: number;
 }
 
 const PROVIDERS: Record<ProviderKey, ProviderConfig> = {
@@ -37,6 +43,8 @@ const PROVIDERS: Record<ProviderKey, ProviderConfig> = {
     // overrides it and drops the required /v1 path, 404-ing every request.
     createModel: (apiKey) => createAnthropic({ apiKey, baseURL: 'https://api.anthropic.com/v1' })('claude-sonnet-5'),
     providerOptions: { anthropic: { thinking: { type: 'adaptive' }, effort: 'low' } },
+    maxOutputTokens: 6000,
+    wordLimit: 1200,
   },
   'claude-opus': {
     label: 'Claude Opus 5',
@@ -44,6 +52,11 @@ const PROVIDERS: Record<ProviderKey, ProviderConfig> = {
     keyHint: 'Get an API key at console.anthropic.com',
     createModel: (apiKey) => createAnthropic({ apiKey, baseURL: 'https://api.anthropic.com/v1' })('claude-opus-5'),
     providerOptions: { anthropic: { thinking: { type: 'adaptive' }, effort: 'low' } },
+    // Opus reasons noticeably more per prompt than Sonnet at the same
+    // effort level (measured: ~1.5-1.7x the thinking tokens), so it needs a
+    // tighter word target to reliably finish inside the 60s window too.
+    maxOutputTokens: 3800,
+    wordLimit: 700,
   },
 };
 
@@ -54,6 +67,8 @@ export type ResolvedProvider =
       label: string;
       model: LanguageModel;
       providerOptions?: ProviderOptions;
+      maxOutputTokens?: number;
+      wordLimit?: number;
     }
   | { ok: false; error: string };
 
@@ -76,5 +91,7 @@ export function resolveProvider(requested: unknown): ResolvedProvider {
     label: config.label,
     model: config.createModel(apiKey),
     providerOptions: config.providerOptions,
+    maxOutputTokens: config.maxOutputTokens,
+    wordLimit: config.wordLimit,
   };
 }

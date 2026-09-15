@@ -167,6 +167,14 @@ export interface AnalysisPromptInput {
   benchmark: BenchmarkData | null;
   previousWatchlist: string | null;
   macroSection: string; // formatted by formatMacroSection(); empty when unset
+  // Claude 5's adaptive thinking has no hard token cap, and this prompt's
+  // full 6-part analysis needs more combined (reasoning + text) tokens than
+  // Claude can generate inside Vercel Hobby's 60s function limit — no
+  // amount of maxOutputTokens tuning reconciles that. Trimming the request
+  // itself is the only lever, so Claude routes ask for terser sections.
+  // Opus reasons noticeably more per prompt than Sonnet at the same effort
+  // level, so it needs a tighter cap to finish in time.
+  wordLimit?: number;
 }
 
 export function buildAnalysisPrompt({
@@ -176,6 +184,7 @@ export function buildAnalysisPrompt({
   benchmark,
   previousWatchlist,
   macroSection,
+  wordLimit,
 }: AnalysisPromptInput): string {
   const totalValue = holdings.reduce((s, h) => s + h.currentValue, 0);
   const totalCost = holdings.reduce((s, h) => s + h.totalCost, 0);
@@ -227,7 +236,12 @@ ${macroSection ? `${macroSection}
 
 ---
 
-${previousWatchlist ? `## WATCHLIST STATUS CHECK
+${wordLimit ? `## LENGTH CONSTRAINT
+Be terse throughout. Each Part below: 2-4 bullet points, no prose paragraphs. Skip any part with nothing material to add rather than padding it. Total response under ${wordLimit} words.
+
+---
+
+` : ''}${previousWatchlist ? `## WATCHLIST STATUS CHECK
 
 The previous analysis flagged these triggers to watch. Before proceeding, evaluate each one against today's prices and recent news — has the condition fired, partially triggered, or is it still pending?
 
