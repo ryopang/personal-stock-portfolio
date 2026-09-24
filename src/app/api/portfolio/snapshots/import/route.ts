@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import redis from '@/lib/redis';
 import type { DailySnapshot } from '@/lib/types';
 import { DEMO_MODE } from '@/lib/demo-mode';
+import { parsePortfolioParam, portfolioKey } from '@/lib/portfolios';
 
 export const dynamic = 'force-dynamic';
-
-const HASH_KEY = 'portfolio:snapshots';
 
 export async function POST(req: NextRequest) {
   if (DEMO_MODE) {
     return NextResponse.json({ error: 'Read-only in demo mode' }, { status: 403 });
   }
+  const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
+  if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
   try {
     const { snapshots } = await req.json() as { snapshots: DailySnapshot[] };
 
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     if (valid.length > 0) {
       const record: Record<string, DailySnapshot> = {};
       for (const s of valid) record[s.date] = s;
-      await redis.hset(HASH_KEY, record);
+      await redis.hset(portfolioKey(portfolio, 'snapshots'), record);
     }
 
     // No pruning here — historical imports must be preserved as-is

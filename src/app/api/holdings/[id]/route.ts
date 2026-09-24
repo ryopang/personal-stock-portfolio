@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getHolding, upsertHolding, deleteHolding } from '@/lib/holdings-service';
 import type { AssetType } from '@/lib/types';
 import { DEMO_MODE } from '@/lib/demo-mode';
+import { parsePortfolioParam } from '@/lib/portfolios';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,9 +13,11 @@ export async function PUT(
   if (DEMO_MODE) {
     return NextResponse.json({ error: 'Read-only in demo mode' }, { status: 403 });
   }
+  const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
+  if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
   try {
     const { id } = await params;
-    const existing = await getHolding(id);
+    const existing = await getHolding(portfolio, id);
     if (!existing) {
       return NextResponse.json({ error: 'Holding not found' }, { status: 404 });
     }
@@ -44,7 +47,7 @@ export async function PUT(
       ...('industry' in body ? { industry: industry?.trim() || undefined } : {}),
     };
 
-    await upsertHolding(updated);
+    await upsertHolding(portfolio, updated);
     return NextResponse.json({ holding: updated });
   } catch (err) {
     console.error('[PUT /api/holdings/[id]]', err);
@@ -53,15 +56,17 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   if (DEMO_MODE) {
     return NextResponse.json({ error: 'Read-only in demo mode' }, { status: 403 });
   }
+  const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
+  if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
   try {
     const { id } = await params;
-    await deleteHolding(id);
+    await deleteHolding(portfolio, id);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('[DELETE /api/holdings/[id]]', err);

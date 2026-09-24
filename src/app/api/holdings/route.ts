@@ -5,15 +5,18 @@ import { toYahooSymbol } from '@/lib/crypto-symbols';
 import type { Holding, AssetType } from '@/lib/types';
 import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_HOLDINGS } from '@/lib/demo-data';
+import { parsePortfolioParam } from '@/lib/portfolios';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (DEMO_MODE) {
     return NextResponse.json({ holdings: DEMO_HOLDINGS });
   }
+  const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
+  if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
   try {
-    const holdings = await getHoldings();
+    const holdings = await getHoldings(portfolio);
     return NextResponse.json({ holdings });
   } catch (err) {
     console.error('[GET /api/holdings]', err);
@@ -25,6 +28,8 @@ export async function POST(req: NextRequest) {
   if (DEMO_MODE) {
     return NextResponse.json({ error: 'Read-only in demo mode' }, { status: 403 });
   }
+  const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
+  if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
   try {
     const body = await req.json();
     const { symbol, type, quantity, costBasis, purchaseDate } = body as {
@@ -68,7 +73,7 @@ export async function POST(req: NextRequest) {
       addedAt: new Date().toISOString(),
     };
 
-    await upsertHolding(holding);
+    await upsertHolding(portfolio, holding);
     return NextResponse.json({ holding }, { status: 201 });
   } catch (err) {
     console.error('[POST /api/holdings]', err);
@@ -76,12 +81,14 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   if (DEMO_MODE) {
     return NextResponse.json({ error: 'Read-only in demo mode' }, { status: 403 });
   }
+  const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
+  if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
   try {
-    await clearHoldings();
+    await clearHoldings(portfolio);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('[DELETE /api/holdings]', err);

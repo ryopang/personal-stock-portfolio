@@ -5,10 +5,10 @@ import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_HOLDINGS } from '@/lib/demo-data';
 import yahooFinance from '@/lib/yahoo';
 import { toYahooSymbol } from '@/lib/crypto-symbols';
+import { parsePortfolioParam, portfolioKey } from '@/lib/portfolios';
 
 export const dynamic = 'force-dynamic';
 
-const HASH_KEY = 'portfolio:snapshots';
 const MAX_DAYS = 3650;
 
 // ─── Demo snapshot computation ────────────────────────────────────────────────
@@ -106,6 +106,8 @@ async function computeDemoSnapshots(days: number): Promise<DailySnapshot[]> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
+  const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
+  if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
   const days = Math.min(Number(req.nextUrl.searchParams.get('days') ?? '90'), MAX_DAYS);
 
   if (DEMO_MODE) {
@@ -119,7 +121,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const raw = await redis.hgetall(HASH_KEY) as Record<string, DailySnapshot> | null;
+    const raw = await redis.hgetall(portfolioKey(portfolio, 'snapshots')) as Record<string, DailySnapshot> | null;
     if (!raw) return NextResponse.json({ snapshots: [] });
 
     const snapshots = Object.values(raw)
@@ -140,23 +142,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
+  if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
+  const hashKey = portfolioKey(portfolio, 'snapshots');
   try {
     const snapshot = await req.json() as DailySnapshot;
     if (!snapshot.date || !snapshot.totalValue) {
       return NextResponse.json({ error: 'Invalid snapshot' }, { status: 400 });
     }
 
-    await redis.hset(HASH_KEY, { [snapshot.date]: snapshot });
+    await redis.hset(hashKey, { [snapshot.date]: snapshot });
 
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - MAX_DAYS);
     const cutoffStr = cutoff.toISOString().split('T')[0];
 
-    const all = await redis.hgetall(HASH_KEY) as Record<string, DailySnapshot> | null;
+    const all = await redis.hgetall(hashKey) as Record<string, DailySnapshot> | null;
     if (all) {
       const toDelete = Object.keys(all).filter(date => date < cutoffStr);
       if (toDelete.length > 0) {
-        await redis.hdel(HASH_KEY, ...toDelete);
+        await redis.hdel(hashKey, ...toDelete);
       }
     }
 

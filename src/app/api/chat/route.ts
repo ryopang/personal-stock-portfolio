@@ -6,6 +6,7 @@ import { aiRatelimit, clientIp } from '@/lib/ratelimit';
 import { getMacroContext, formatMacroSection } from '@/lib/macro-context';
 import { getPortfolioWithMetrics } from '@/lib/portfolio-server';
 import { CHAT_SYSTEM_PROMPT, buildPortfolioContext } from '@/lib/prompts';
+import { parsePortfolioParam } from '@/lib/portfolios';
 import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_CHAT_RESPONSES } from '@/lib/demo-data';
 
@@ -62,6 +63,9 @@ export async function POST(req: NextRequest) {
     return demoChatResponse(response);
   }
 
+  const portfolioId = parsePortfolioParam(req.nextUrl.searchParams);
+  if (!portfolioId) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
+
   let messages: UIMessage[];
   let providerKey: ProviderKey = 'gemini';
   let lang: 'en' | 'zh-TW' = 'en';
@@ -91,7 +95,7 @@ export async function POST(req: NextRequest) {
 
   const [macro, portfolio] = await Promise.all([
     getMacroContext().catch(() => null),
-    getPortfolioWithMetrics().catch(() => null),
+    getPortfolioWithMetrics(portfolioId).catch(() => null),
   ]);
 
   const portfolioContext = portfolio?.holdings.length
