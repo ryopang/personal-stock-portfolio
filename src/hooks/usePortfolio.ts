@@ -2,6 +2,7 @@
 
 import { useMemo, useEffect, useRef } from 'react';
 import { usePortfolioStore } from '@/store/portfolioStore';
+import { withPortfolio } from '@/lib/portfolios';
 import { useQuotes } from './useQuotes';
 import { toYahooSymbol } from '@/lib/crypto-symbols';
 import { computeHoldingMetrics, computePortfolioTotals } from '@/lib/calculations';
@@ -110,7 +111,11 @@ export function usePortfolio(): UsePortfolioReturn {
       byIndustry,
     };
 
-    fetch('/api/portfolio/snapshots', {
+    // Read at fire time: holdings and the active id switch together in the store, so
+    // a snapshot is always filed under the person whose holdings produced it.
+    const portfolio = usePortfolioStore.getState().activePortfolio;
+
+    fetch(withPortfolio('/api/portfolio/snapshots', portfolio), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(snapshot),

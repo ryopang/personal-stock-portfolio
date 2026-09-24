@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
+import { usePortfolioStore } from '@/store/portfolioStore';
+import { withPortfolio } from '@/lib/portfolios';
 import useSWR from 'swr';
 import { formatCurrencyK } from '@/lib/formatters';
 import type { HoldingWithMetrics, DailySnapshot } from '@/lib/types';
@@ -163,8 +165,9 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
     return () => observer.disconnect();
   }, []);
 
+  const activePortfolio = usePortfolioStore((s) => s.activePortfolio);
   const { data } = useSWR<{ snapshots: DailySnapshot[] }>(
-    '/api/portfolio/snapshots?days=3650',
+    withPortfolio('/api/portfolio/snapshots?days=3650', activePortfolio),
     snapshotFetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: false, refreshInterval: 0 },
   );

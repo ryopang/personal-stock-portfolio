@@ -9,7 +9,7 @@ async function getInitialHoldings() {
   if (DEMO_MODE) return DEMO_HOLDINGS;
   try {
     const { getHoldings } = await import('@/lib/holdings-service');
-    return await getHoldings();
+    return await getHoldings('ryo');
   } catch (err) {
     console.error('Failed to load initial holdings:', err);
     return [];

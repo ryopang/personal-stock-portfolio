@@ -6,6 +6,7 @@ import { aiRatelimit, clientIp } from '@/lib/ratelimit';
 import { getMacroContext, formatMacroSection } from '@/lib/macro-context';
 import { getPortfolioWithMetrics } from '@/lib/portfolio-server';
 import { CHAT_SYSTEM_PROMPT, buildPortfolioContext } from '@/lib/prompts';
+import { DEFAULT_PORTFOLIO, PORTFOLIO_LABELS, isPortfolioId, type PortfolioId } from '@/lib/portfolios';
 import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_CHAT_RESPONSES } from '@/lib/demo-data';
 
@@ -65,9 +66,17 @@ export async function POST(req: NextRequest) {
   let messages: UIMessage[];
   let providerKey: ProviderKey = 'gemini';
   let lang: 'en' | 'zh-TW' = 'en';
+  let portfolioId: PortfolioId = DEFAULT_PORTFOLIO;
 
   try {
-    ({ messages, provider: providerKey, lang } = await req.json());
+    const body = await req.json();
+    ({ messages, provider: providerKey, lang } = body);
+    if (body.portfolio !== undefined) {
+      if (!isPortfolioId(body.portfolio)) {
+        return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
+      }
+      portfolioId = body.portfolio;
+    }
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
@@ -91,11 +100,11 @@ export async function POST(req: NextRequest) {
 
   const [macro, portfolio] = await Promise.all([
     getMacroContext().catch(() => null),
-    getPortfolioWithMetrics().catch(() => null),
+    getPortfolioWithMetrics(portfolioId).catch(() => null),
   ]);
 
   const portfolioContext = portfolio?.holdings.length
-    ? buildPortfolioContext(portfolio.holdings, portfolio.totals)
+    ? buildPortfolioContext(portfolio.holdings, portfolio.totals, PORTFOLIO_LABELS[portfolioId])
     : '';
 
   const langInstruction = lang === 'zh-TW'

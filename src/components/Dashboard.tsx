@@ -23,6 +23,7 @@ import AnalysisTab from './AnalysisTab';
 import InvestmentChatbot from './InvestmentChatbot';
 import { SummarySkeleton, TableSkeleton } from './LoadingSkeleton';
 import type { Holding, HoldingWithMetrics, AssetType } from '@/lib/types';
+import { PORTFOLIO_IDS, PORTFOLIO_LABELS, withPortfolio, type PortfolioId } from '@/lib/portfolios';
 
 interface Props {
   initialHoldings: Holding[];
@@ -35,6 +36,8 @@ export default function Dashboard({ initialHoldings }: Props) {
   const removeHolding = usePortfolioStore((s) => s.removeHolding);
   const clearHoldingsStore = usePortfolioStore((s) => s.clearHoldings);
   const holdings = usePortfolioStore((s) => s.holdings);
+  const activePortfolio = usePortfolioStore((s) => s.activePortfolio);
+  const setActivePortfolio = usePortfolioStore((s) => s.setActivePortfolio);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<HoldingWithMetrics | null>(null);
@@ -43,11 +46,13 @@ export default function Dashboard({ initialHoldings }: Props) {
   const [historicalImportOpen, setHistoricalImportOpen] = useState(false);
   const [macroContextOpen, setMacroContextOpen] = useState(false);
   const [editDatesOpen, setEditDatesOpen] = useState(false);
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [portfolioName, setPortfolioName] = useState("Ryo's Investment Portfolio");
-  const [renameValue, setRenameValue] = useState('');
-  const [renameSaving, setRenameSaving] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [portfolioLoadError, setPortfolioLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  // Which portfolio the store's holdings currently belong to. null = store is empty/stale,
+  // so the load effect must fetch (also covers retry and fast A→B→A switching).
+  const loadedPortfolioRef = useRef<PortfolioId | null>('ryo');
   const [darkMode, setDarkMode] = useState(false);
   const [privacyMode, setPrivacyMode] = useState(false);
   const [clearModalOpen, setClearModalOpen] = useState(false);
@@ -118,35 +123,44 @@ export default function Dashboard({ initialHoldings }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    fetch('/api/portfolio-name')
-      .then((r) => r.json())
-      .then(({ name }) => { if (name) setPortfolioName(name); })
-      .catch(() => {});
-  }, []);
-
   const { holdingsWithMetrics, totals, isLoading, isRefreshing, error, refresh, lastUpdated, missingQuoteSymbols } =
     usePortfolio();
 
-  async function handleRenameSave() {
-    if (!renameValue.trim()) return;
-    setRenameSaving(true);
-    try {
-      const res = await fetch('/api/portfolio-name', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: renameValue.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Save failed');
-      setPortfolioName(data.name);
-      setRenameOpen(false);
-    } catch {
-      // leave modal open on error
-    } finally {
-      setRenameSaving(false);
-    }
+
+  function switchPortfolio(id: PortfolioId) {
+    if (id === activePortfolio) return;
+    loadedPortfolioRef.current = null;
+    setActivePortfolio(id);
+    // Mover/alert filters are Dashboard state, so they'd otherwise carry over to the next person
+    setMoverFilter(null);
+    setAlertFilter(false);
   }
+
+  useEffect(() => {
+    if (DEMO_MODE || activePortfolio === loadedPortfolioRef.current) return;
+    let cancelled = false;
+    setPortfolioLoading(true);
+    setPortfolioLoadError(false);
+    fetch(withPortfolio('/api/holdings', activePortfolio))
+      .then((res) => {
+        if (!res.ok) throw new Error('Load failed');
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setHoldings(data.holdings ?? []);
+        loadedPortfolioRef.current = activePortfolio;
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPortfolioLoadError(true);
+        pushToast(`Failed to load ${PORTFOLIO_LABELS[activePortfolio]}'s portfolio.`);
+      })
+      .finally(() => {
+        if (!cancelled) setPortfolioLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [activePortfolio, loadAttempt, setHoldings, pushToast]);
 
   const handleAdd = () => {
     setEditTarget(null);
@@ -166,30 +180,30 @@ export default function Dashboard({ initialHoldings }: Props) {
     setDeleteTarget(null);
     removeHolding(id);
     try {
-      const res = await fetch(`/api/holdings/${id}`, { method: 'DELETE' });
+      const res = await fetch(withPortfolio(`/api/holdings/${id}`, activePortfolio), { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
     } catch {
-      const res = await fetch('/api/holdings');
+      const res = await fetch(withPortfolio('/api/holdings', activePortfolio));
       const data = await res.json();
-      setHoldings(data.holdings ?? []);
+      if (usePortfolioStore.getState().activePortfolio === activePortfolio) setHoldings(data.holdings ?? []);
       pushToast('Failed to delete holding. Your portfolio has been restored.');
     }
-  }, [removeHolding, setHoldings, pushToast]);
+  }, [removeHolding, setHoldings, pushToast, activePortfolio]);
 
   const handleClearAll = useCallback(async () => {
     clearHoldingsStore();
     setClearModalOpen(false);
     setClearConfirmText('');
     try {
-      const res = await fetch('/api/holdings', { method: 'DELETE' });
+      const res = await fetch(withPortfolio('/api/holdings', activePortfolio), { method: 'DELETE' });
       if (!res.ok) throw new Error('Clear failed');
     } catch {
-      const res = await fetch('/api/holdings');
+      const res = await fetch(withPortfolio('/api/holdings', activePortfolio));
       const data = await res.json();
-      setHoldings(data.holdings ?? []);
+      if (usePortfolioStore.getState().activePortfolio === activePortfolio) setHoldings(data.holdings ?? []);
       pushToast('Failed to clear portfolio. Your holdings have been restored.');
     }
-  }, [clearHoldingsStore, setHoldings, pushToast]);
+  }, [clearHoldingsStore, setHoldings, pushToast, activePortfolio]);
 
   const handleImportComplete = useCallback(async (importedHoldings: Holding[]) => {
     for (const h of importedHoldings) addHolding(h);
@@ -214,7 +228,7 @@ export default function Dashboard({ initialHoldings }: Props) {
   }) => {
     if (payload.id) {
       // Edit
-      const res = await fetch(`/api/holdings/${payload.id}`, {
+      const res = await fetch(withPortfolio(`/api/holdings/${payload.id}`, activePortfolio), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -233,7 +247,7 @@ export default function Dashboard({ initialHoldings }: Props) {
       updateHolding(payload.id, data.holding);
     } else {
       // Add
-      const res = await fetch('/api/holdings', {
+      const res = await fetch(withPortfolio('/api/holdings', activePortfolio), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -247,14 +261,14 @@ export default function Dashboard({ initialHoldings }: Props) {
     }
     // Refresh quotes to include any new symbols
     await refresh();
-  }, [addHolding, updateHolding, refresh]);
+  }, [addHolding, updateHolding, refresh, activePortfolio]);
 
   const handleSavePurchaseDates = useCallback(async (
     updates: { id: string; purchaseDate: string }[]
   ) => {
     const results = await Promise.allSettled(
       updates.map(({ id, purchaseDate }) =>
-        fetch(`/api/holdings/${id}`, {
+        fetch(withPortfolio(`/api/holdings/${id}`, activePortfolio), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ purchaseDate }),
@@ -272,7 +286,7 @@ export default function Dashboard({ initialHoldings }: Props) {
     if (failed.length > 0) {
       throw new Error(`${failed.length} update${failed.length !== 1 ? 's' : ''} failed`);
     }
-  }, [updateHolding]);
+  }, [updateHolding, activePortfolio]);
 
   return (
     <div className="min-h-dvh bg-background">
@@ -284,7 +298,7 @@ export default function Dashboard({ initialHoldings }: Props) {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div>
-              <h1 className="text-sm font-bold text-primary tracking-widest uppercase">{portfolioName}</h1>
+              <h1 className="text-sm font-bold text-primary tracking-widest uppercase">Investment Portfolios</h1>
               <p className="text-xs text-tertiary mt-0.5">{today}</p>
             </div>
             {DEMO_MODE && (
@@ -422,19 +436,6 @@ export default function Dashboard({ initialHoldings }: Props) {
                     </button>
                   )}
                   <div className="my-1 border-t" style={{ borderColor: 'var(--color-border)' }} />
-                  {/* Rename portfolio */}
-                  <button
-                    onClick={() => { if (DEMO_MODE) return; setAdminOpen(false); setRenameValue(portfolioName); setRenameOpen(true); }}
-                    disabled={DEMO_MODE}
-                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${DEMO_MODE ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
-                    style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
-                    title={DEMO_MODE ? 'Not available in demo mode' : undefined}
-                  >
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-                    </svg>
-                    Rename portfolio
-                  </button>
                   {/* Password toggle — always greyed out in demo */}
                   <button
                     onClick={() => {
@@ -481,6 +482,30 @@ export default function Dashboard({ initialHoldings }: Props) {
             </div>
           </div>
         </div>
+        {/* Portfolio switcher — lives in the header (not the tabs) so it stays reachable when a portfolio is empty.
+            Hidden in demo mode: the demo has a single read-only portfolio. */}
+        {!DEMO_MODE && (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-2">
+          <div role="group" aria-label="Portfolio" className="inline-flex rounded-lg p-0.5" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
+            {PORTFOLIO_IDS.map((id) => (
+              <button
+                key={id}
+                onClick={() => switchPortfolio(id)}
+                aria-pressed={activePortfolio === id}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  activePortfolio === id ? 'text-primary shadow-sm' : 'text-secondary'
+                }`}
+                style={{
+                  touchAction: 'manipulation',
+                  backgroundColor: activePortfolio === id ? 'var(--color-surface)' : 'transparent',
+                }}
+              >
+                {PORTFOLIO_LABELS[id]}
+              </button>
+            ))}
+          </div>
+        </div>
+        )}
       </header>
 
       {/* View tabs + portfolio summary inside the sticky band */}
@@ -552,10 +577,18 @@ export default function Dashboard({ initialHoldings }: Props) {
 
         {!hydrated && initialHoldings.length > 0 ? (
           <TableSkeleton rows={initialHoldings.length} />
+        ) : portfolioLoading ? (
+          <TableSkeleton rows={4} />
+        ) : portfolioLoadError ? (
+          <div className="card p-6 text-center space-y-3">
+            <p className="text-sm text-secondary">Couldn&apos;t load {PORTFOLIO_LABELS[activePortfolio]}&apos;s portfolio.</p>
+            <button className="btn-secondary" onClick={() => setLoadAttempt((n) => n + 1)}>Retry</button>
+          </div>
         ) : holdings.length === 0 && !isLoading ? (
           <EmptyState onAdd={handleAdd} />
         ) : activeView === 'portfolio' ? (
           <HoldingsSection
+            key={activePortfolio}
             holdings={holdingsWithMetrics}
             isLoading={isLoading}
             onEdit={handleEdit}
@@ -566,9 +599,9 @@ export default function Dashboard({ initialHoldings }: Props) {
             onAlertFilter={setAlertFilter}
           />
         ) : activeView === 'charts' ? (
-          <ChartsView holdings={holdingsWithMetrics} />
+          <ChartsView key={activePortfolio} holdings={holdingsWithMetrics} />
         ) : (
-          <AnalysisTab holdings={holdingsWithMetrics} lang={lang} onLangChange={setLang} />
+          <AnalysisTab key={activePortfolio} holdings={holdingsWithMetrics} lang={lang} onLangChange={setLang} />
         )}
       </main>
 
@@ -611,47 +644,6 @@ export default function Dashboard({ initialHoldings }: Props) {
         <MacroContextModal onClose={() => setMacroContextOpen(false)} />
       )}
 
-      {/* Rename portfolio */}
-      {renameOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setRenameOpen(false)} />
-          <div
-            className="relative w-full max-w-sm mx-4 rounded-2xl shadow-2xl p-6 space-y-4"
-            style={{ backgroundColor: 'var(--color-surface)' }}
-          >
-            <h2 className="text-base font-semibold" style={{ color: 'var(--color-primary)' }}>
-              Rename portfolio
-            </h2>
-            <input
-              type="text"
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              maxLength={100}
-              className="input w-full"
-              placeholder="Portfolio name"
-              disabled={renameSaving}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && renameValue.trim()) handleRenameSave();
-                if (e.key === 'Escape') setRenameOpen(false);
-              }}
-              autoFocus
-            />
-            <div className="flex gap-3 pt-1">
-              <button onClick={() => setRenameOpen(false)} className="flex-1 btn-secondary" disabled={renameSaving}>
-                Cancel
-              </button>
-              <button
-                onClick={handleRenameSave}
-                className="flex-1 btn-primary"
-                disabled={renameSaving || !renameValue.trim()}
-              >
-                {renameSaving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Edit purchase dates */}
       {editDatesOpen && (
         <EditPurchaseDatesModal
@@ -662,7 +654,7 @@ export default function Dashboard({ initialHoldings }: Props) {
       )}
 
       {/* Investment advisor chatbot */}
-      <InvestmentChatbot holdings={holdingsWithMetrics} lang={lang} />
+      <InvestmentChatbot key={activePortfolio} holdings={holdingsWithMetrics} lang={lang} />
 
       {/* Delete holding confirmation */}
       {deleteTarget && (

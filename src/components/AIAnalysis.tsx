@@ -2,6 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { HoldingWithMetrics } from '@/lib/types';
+import { usePortfolioStore } from '@/store/portfolioStore';
+import { withPortfolio } from '@/lib/portfolios';
 
 interface Props {
   holdings: HoldingWithMetrics[];
@@ -220,6 +222,8 @@ function formatAge(ts: number): string {
 }
 
 export default function AIAnalysis({ holdings, lang }: Props) {
+  // AnalysisTab is keyed by portfolio, so this component never outlives a portfolio switch.
+  const activePortfolio = usePortfolioStore((s) => s.activePortfolio);
   const [status, setStatus] = useState<Status>('idle');
   const [text, setText] = useState('');
   const [provider, setProvider] = useState<Provider>('gemini');
@@ -229,7 +233,7 @@ export default function AIAnalysis({ holdings, lang }: Props) {
 
   // Load cached analysis on mount
   useEffect(() => {
-    fetch('/api/analysis')
+    fetch(withPortfolio('/api/analysis', activePortfolio))
       .then(r => r.json())
       .then(({ cached }) => {
         if (cached?.text) {
@@ -240,7 +244,7 @@ export default function AIAnalysis({ holdings, lang }: Props) {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [activePortfolio]);
 
   const run = useCallback(async () => {
     if (status === 'streaming') {
@@ -256,7 +260,7 @@ export default function AIAnalysis({ holdings, lang }: Props) {
     try {
       // Holdings, news, benchmark, and previous watchlist are all assembled
       // server-side from Redis and Yahoo — only language and provider go up.
-      const res = await fetch('/api/analysis', {
+      const res = await fetch(withPortfolio('/api/analysis', activePortfolio), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lang, provider }),
@@ -302,7 +306,7 @@ export default function AIAnalysis({ holdings, lang }: Props) {
         setStatus('error');
       }
     }
-  }, [lang, status, provider]);
+  }, [lang, status, provider, activePortfolio]);
 
 
   return (

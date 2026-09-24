@@ -14,6 +14,7 @@ import {
   buildAnalysisPrompt,
   extractWatchlist,
 } from '@/lib/prompts';
+import { PORTFOLIO_LABELS, parsePortfolioParam, portfolioKey } from '@/lib/portfolios';
 import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_ANALYSIS_TEXT } from '@/lib/demo-data';
 
@@ -24,15 +25,13 @@ export const dynamic = 'force-dynamic';
 // 60s is the max allowed on Hobby; raise it if the account is on Pro/Enterprise.
 export const maxDuration = 60;
 
-const CACHE_KEY = 'portfolio:analysis';
-
 interface CachedAnalysis {
   text: string;
   provider: string;
   generatedAt: number;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (DEMO_MODE) {
     return NextResponse.json({
       cached: {
@@ -42,7 +41,9 @@ export async function GET() {
       } satisfies CachedAnalysis,
     });
   }
-  const cached = await redis.get<CachedAnalysis>(CACHE_KEY);
+  const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
+  if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
+  const cached = await redis.get<CachedAnalysis>(portfolioKey(portfolio, 'analysis'));
   if (!cached) return NextResponse.json({ cached: null });
   return NextResponse.json({ cached });
 }
@@ -79,6 +80,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
+  const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
+  if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
+  const cacheKey = portfolioKey(portfolio, 'analysis');
+
   const { success } = await aiRatelimit.limit(clientIp(req));
   if (!success) {
     return NextResponse.json(
@@ -94,7 +99,7 @@ export async function POST(req: NextRequest) {
 
   let holdings;
   try {
-    ({ holdings } = await getPortfolioWithMetrics());
+    ({ holdings } = await getPortfolioWithMetrics(portfolio));
   } catch (err) {
     console.error('[POST /api/analysis] portfolio fetch failed', err);
     return NextResponse.json({ error: 'Failed to load portfolio data.' }, { status: 502 });
@@ -108,7 +113,7 @@ export async function POST(req: NextRequest) {
     fetchNewsForSymbols(symbols).catch(() => []),
     getBenchmarkReturns('VTI'),
     getMacroContext().catch(() => null),
-    redis.get<CachedAnalysis>(CACHE_KEY).catch(() => null),
+    redis.get<CachedAnalysis>(cacheKey).catch(() => null),
   ]);
 
   const prompt = buildAnalysisPrompt({
@@ -119,6 +124,7 @@ export async function POST(req: NextRequest) {
     previousWatchlist: cached?.text ? extractWatchlist(cached.text) : null,
     macroSection: formatMacroSection(macro),
     wordLimit: provider.wordLimit,
+    ownerName: PORTFOLIO_LABELS[portfolio],
   });
 
   const result = streamText({
@@ -130,7 +136,7 @@ export async function POST(req: NextRequest) {
     onError: ({ error }) => console.error('[POST /api/analysis]', error),
     onFinish: async ({ text }) => {
       if (text) {
-        await redis.set(CACHE_KEY, {
+        await redis.set(cacheKey, {
           text,
           provider: provider.key,
           generatedAt: Date.now(),

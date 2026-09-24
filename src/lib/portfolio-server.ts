@@ -4,6 +4,7 @@ import { toYahooSymbol } from './crypto-symbols';
 import { computeHoldingMetrics, computePortfolioTotals } from './calculations';
 import type { HoldingWithMetrics, PortfolioTotals, Quote } from './types';
 import type { BenchmarkData } from './prompts';
+import type { PortfolioId } from './portfolios';
 
 // Server-side portfolio assembly: Redis holdings + live Yahoo quotes → metrics.
 // Used by the AI routes so they never have to trust a client-supplied payload.
@@ -31,8 +32,8 @@ export interface PortfolioWithMetrics {
   totals: PortfolioTotals;
 }
 
-export async function getPortfolioWithMetrics(): Promise<PortfolioWithMetrics> {
-  const holdings = await getHoldings();
+export async function getPortfolioWithMetrics(portfolio: PortfolioId): Promise<PortfolioWithMetrics> {
+  const holdings = await getHoldings(portfolio);
   if (!holdings.length) {
     return { holdings: [], totals: computePortfolioTotals([]) };
   }

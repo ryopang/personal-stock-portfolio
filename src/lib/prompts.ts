@@ -140,6 +140,7 @@ export function buildHoldingsTable(
 export function buildPortfolioContext(
   holdings: HoldingWithMetrics[],
   totals: PortfolioTotals,
+  ownerName: string,
 ): string {
   if (!holdings.length) return '';
 
@@ -148,7 +149,9 @@ export function buildPortfolioContext(
 
   return `
 
-## INVESTOR'S CURRENT PORTFOLIO
+## ${ownerName.toUpperCase()}'S CURRENT PORTFOLIO
+
+This portfolio belongs to ${ownerName}. The user is asking about ${ownerName}'s portfolio — refer to ${ownerName} by name, not "you" or "the investor".
 
 **Total Value:** $${totals.totalValue.toFixed(2)}
 **Total Cost Basis:** $${totals.totalCost.toFixed(2)}
@@ -157,7 +160,7 @@ export function buildPortfolioContext(
 
 ${buildHoldingsTable(holdings, totals.totalValue, { includeDaily: true })}
 
-When answering questions, reference the investor's actual portfolio above when relevant. Use specific tickers, values, and allocations from the data.`;
+When answering questions, reference ${ownerName}'s actual portfolio above when relevant. Use specific tickers, values, and allocations from the data.`;
 }
 
 export interface AnalysisPromptInput {
@@ -175,6 +178,7 @@ export interface AnalysisPromptInput {
   // Opus reasons noticeably more per prompt than Sonnet at the same effort
   // level, so it needs a tighter cap to finish in time.
   wordLimit?: number;
+  ownerName: string; // whose portfolio this is — the report names them instead of saying "my"
 }
 
 export function buildAnalysisPrompt({
@@ -185,6 +189,7 @@ export function buildAnalysisPrompt({
   previousWatchlist,
   macroSection,
   wordLimit,
+  ownerName,
 }: AnalysisPromptInput): string {
   const totalValue = holdings.reduce((s, h) => s + h.currentValue, 0);
   const totalCost = holdings.reduce((s, h) => s + h.totalCost, 0);
@@ -202,9 +207,9 @@ export function buildAnalysisPrompt({
 
   return `${langInstruction}
 
-You are analyzing my actual investment portfolio. Use the exact figures below — do not invent or estimate data that is provided.
+You are analyzing ${ownerName}'s actual investment portfolio. Wherever this prompt says "my", "I" or "me", it means ${ownerName}. Open the report with the heading "${ownerName}'s Portfolio Analysis" and refer to ${ownerName} by name throughout instead of saying "you". Use the exact figures below — do not invent or estimate data that is provided.
 
-## MY PORTFOLIO (as of ${new Date().toISOString().slice(0, 10)})
+## ${ownerName.toUpperCase()}'S PORTFOLIO (as of ${new Date().toISOString().slice(0, 10)})
 
 **Total Value:** $${totalValue.toFixed(2)}
 **Total Cost Basis:** $${totalCost.toFixed(2)}
@@ -227,7 +232,7 @@ ${newsSummary || 'No recent news available.'}
 ${macroSection ? `${macroSection}
 ---
 ` : ''}
-## MY INVESTMENT PROFILE
+## ${ownerName.toUpperCase()}'S INVESTMENT PROFILE
 
 - Time Horizon: Mid-to-long term (3–10+ years)
 - Primary Objective: Long-term wealth compounding

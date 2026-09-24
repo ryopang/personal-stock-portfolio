@@ -2,8 +2,12 @@
 
 import { create } from 'zustand';
 import type { Holding } from '@/lib/types';
+import { DEFAULT_PORTFOLIO, type PortfolioId } from '@/lib/portfolios';
 
 interface PortfolioStore {
+  activePortfolio: PortfolioId;
+  /** Switches person and empties holdings so one person's data never renders under another's name. */
+  setActivePortfolio: (id: PortfolioId) => void;
   holdings: Holding[];
   setHoldings: (holdings: Holding[]) => void;
   addHolding: (holding: Holding) => void;
@@ -13,6 +17,9 @@ interface PortfolioStore {
 }
 
 export const usePortfolioStore = create<PortfolioStore>((set) => ({
+  activePortfolio: DEFAULT_PORTFOLIO,
+  setActivePortfolio: (id) => set({ activePortfolio: id, holdings: [] }),
+
   holdings: [],
 
   setHoldings: (holdings) => set({ holdings }),
