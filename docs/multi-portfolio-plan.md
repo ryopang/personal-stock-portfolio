@@ -1,7 +1,7 @@
 # Multi-portfolio toggle — Ryo / Joey / Shela
 
 **Decisions (2026-09-23):** no per-person PIN (Ryo is the sole user); always start on Ryo;
-names are "Ryo's / Joey's / Shela's Investment Portfolio" (renamable); AI prompts identical
+header title becomes a fixed "Investment Portfolios" (no per-person names, so the rename feature and `portfolio:*:name` keys are dropped); AI prompts identical
 for everyone, but analysing the selected person's holdings; macro context stays shared.
 
 ## Data model
@@ -14,14 +14,12 @@ Redis keys are namespaced per person. Ryo keeps the **existing keys untouched** 
 | holdings | `portfolio:holdings` | `portfolio:joey:holdings` |
 | snapshots | `portfolio:snapshots` | `portfolio:joey:snapshots` |
 | analysis cache | `portfolio:analysis` | `portfolio:joey:analysis` |
-| name | `portfolio:name` | `portfolio:joey:name` |
 
 `portfolio:macro-context` is shared.
 
 ## Server
 - Every portfolio-scoped route takes `?portfolio=<id>` (default `ryo`, invalid → 400):
-  `holdings`, `holdings/[id]`, `portfolio/snapshots` (+ `/import`), `portfolio-name`,
-  `analysis`, `chat` (body field). `news`, `quotes`, `history`, `search` take symbols already — unchanged.
+  `holdings`, `holdings/[id]`, `portfolio/snapshots` (+ `/import`), `analysis`, `chat` (body field). `news`, `quotes`, `history`, `search` take symbols already — unchanged.
 - `holdings-service.ts`, `portfolio-server.ts` (`getPortfolioWithMetrics`) take a `PortfolioId`.
 - `page.tsx` still server-loads Ryo's holdings as the initial state.
 
