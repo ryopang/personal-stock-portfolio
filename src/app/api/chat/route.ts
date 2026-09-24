@@ -6,7 +6,7 @@ import { aiRatelimit, clientIp } from '@/lib/ratelimit';
 import { getMacroContext, formatMacroSection } from '@/lib/macro-context';
 import { getPortfolioWithMetrics } from '@/lib/portfolio-server';
 import { CHAT_SYSTEM_PROMPT, buildPortfolioContext } from '@/lib/prompts';
-import { DEFAULT_PORTFOLIO, isPortfolioId, type PortfolioId } from '@/lib/portfolios';
+import { DEFAULT_PORTFOLIO, PORTFOLIO_LABELS, isPortfolioId, type PortfolioId } from '@/lib/portfolios';
 import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_CHAT_RESPONSES } from '@/lib/demo-data';
 
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
   ]);
 
   const portfolioContext = portfolio?.holdings.length
-    ? buildPortfolioContext(portfolio.holdings, portfolio.totals)
+    ? buildPortfolioContext(portfolio.holdings, portfolio.totals, PORTFOLIO_LABELS[portfolioId])
     : '';
 
   const langInstruction = lang === 'zh-TW'

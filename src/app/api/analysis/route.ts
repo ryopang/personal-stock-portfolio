@@ -14,7 +14,7 @@ import {
   buildAnalysisPrompt,
   extractWatchlist,
 } from '@/lib/prompts';
-import { parsePortfolioParam, portfolioKey } from '@/lib/portfolios';
+import { PORTFOLIO_LABELS, parsePortfolioParam, portfolioKey } from '@/lib/portfolios';
 import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_ANALYSIS_TEXT } from '@/lib/demo-data';
 
@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
     previousWatchlist: cached?.text ? extractWatchlist(cached.text) : null,
     macroSection: formatMacroSection(macro),
     wordLimit: provider.wordLimit,
+    ownerName: PORTFOLIO_LABELS[portfolio],
   });
 
   const result = streamText({
