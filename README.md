@@ -19,7 +19,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 ## Features
 
 ### Multiple Portfolios
-- **Ryo / Joey / Shela switcher** — a segmented toggle in the header (always visible, even when a portfolio is empty) switches Holdings, Charts and Analysis between three separate portfolios. It always starts on Ryo and the tab you're on stays put when you switch
+- **Profile switcher** — a segmented toggle in the header (always visible, even when a portfolio is empty) switches Holdings, Charts and Analysis between three separate portfolios. It always starts on Ryo and the tab you're on stays put when you switch
 - **Identical functionality for everyone** — add / edit / delete / clear, CSV and historical imports, bulk purchase-date edits, trend snapshots, AI analysis and the chatbot all operate on the selected person's portfolio
 - **AI output names the owner** — analysis reports open with "Joey's Portfolio Analysis" and refer to the owner by name; the chatbot does the same. The investment-profile prompt is shared by all three
 - **Fully isolated data** — each person has their own holdings, daily snapshots and cached AI analysis in Redis; only the macro-context commentary is shared
