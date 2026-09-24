@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { usePortfolioData } from '@/hooks/usePortfolio';
+import { usePortfolioStore } from '@/store/portfolioStore';
 import { formatCurrencyK } from '@/lib/formatters';
 
 const SESSION_KEY = 'portfolio_unlocked';
@@ -21,7 +22,11 @@ export default function PasswordGate({ children }: { children: React.ReactNode }
   // Shares the same Zustand store + SWR cache as Dashboard, so this doesn't
   // trigger an extra quote fetch — it just reads whatever Dashboard already loaded.
   const { totals, holdingsWithMetrics } = usePortfolioData();
-  const dataReady = holdingsWithMetrics.length > 0;
+  // The lock screen only ever shows Ryo's daily change. The store starts on Ryo and the
+  // switcher sits behind this gate, but guard explicitly so Joey's/Shela's numbers can
+  // never surface here.
+  const activePortfolio = usePortfolioStore((s) => s.activePortfolio);
+  const dataReady = activePortfolio === 'ryo' && holdingsWithMetrics.length > 0;
   const isGain = totals.dailyChange > 0;
   const isLoss = totals.dailyChange < 0;
   const dailyChangeSign = isGain ? '+' : isLoss ? '-' : '';

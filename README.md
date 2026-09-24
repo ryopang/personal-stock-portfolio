@@ -126,7 +126,10 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ## Changelog
 
-### September 2026 (latest) — v0.1.2
+### September 2026 (latest) — v0.2.0
+- **Ryo / Joey / Shela portfolio switcher** — a toggle in the header switches Holdings, Charts and Analysis (plus add/edit/import/clear, trend snapshots, AI analysis, chatbot) between three separate portfolios with identical functionality. Each person's holdings, daily snapshots and cached AI analysis live under their own Redis keys (`portfolio:joey:*`, `portfolio:shela:*`); Ryo's keys are unchanged, so no data migration. API routes take `?portfolio=ryo|joey|shela` (default `ryo`, unknown → 400). The switcher always starts on Ryo, and the password gate only ever shows Ryo's daily change. Macro context stays shared. The header now reads "Investment Portfolios" and the per-portfolio rename feature was removed.
+
+### September 2026 — v0.1.2
 - **Claude analysis no longer times out on Vercel Hobby** — Claude Sonnet 5 / Opus 5's adaptive extended thinking has no hard token cap, and for the full six-part portfolio analysis, combined reasoning + text generation routinely took 65–106s — past the Hobby plan's 60s function limit, so the request was killed mid-stream and the panel never finished loading. `maxOutputTokens` alone couldn't fix this (cutting it just truncated the answer instead of speeding it up), since the model only supports `thinking.type: 'adaptive'` — there's no API-level way to hard-cap reasoning tokens. Fixed by asking Claude for a shorter answer instead: a per-provider `wordLimit` is now injected into the analysis prompt (Claude only — Gemini's prompt is unchanged), paired with tuned `maxOutputTokens` per model (Opus reasons noticeably more than Sonnet at the same effort level, so it gets a tighter cap). Verified directly against the Anthropic API with the real prompt: Sonnet now finishes complete in ~50s, Opus in ~48s.
 - **Gemini 3.8 Flash outages are upstream, not a bug** — confirmed by calling Google's API directly: `gemini-3.8-flash` returns a `503 UNAVAILABLE` ("high demand") while `gemini-2.5-flash` on the same key succeeds instantly. No code change; this clears on its own when Google's capacity for that model recovers.
 
