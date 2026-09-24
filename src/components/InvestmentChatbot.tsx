@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { usePortfolioStore } from '@/store/portfolioStore';
 import { useChat } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import type { HoldingWithMetrics } from '@/lib/types';
@@ -123,6 +124,8 @@ export default function InvestmentChatbot({ holdings, lang }: Props) {
 
   // Streaming transport, message state, and abort are all managed by useChat
   // (defaults to POST /api/chat, which responds via toUIMessageStreamResponse).
+  // Dashboard keys this component by portfolio, so the id is stable for the life of the chat.
+  const activePortfolio = usePortfolioStore((s) => s.activePortfolio);
   const { messages, sendMessage, status, stop, setMessages, error } = useChat();
   const streaming = status === 'submitted' || status === 'streaming';
 
@@ -146,7 +149,7 @@ export default function InvestmentChatbot({ holdings, lang }: Props) {
     setInput('');
     // Provider and language ride along as extra body fields; the server
     // assembles portfolio context itself from Redis + Yahoo.
-    sendMessage({ text }, { body: { provider, lang } });
+    sendMessage({ text }, { body: { provider, lang, portfolio: activePortfolio } });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

@@ -4,6 +4,8 @@ import { useState, useRef } from 'react';
 import { useModalBehavior } from '@/hooks/useModalBehavior';
 import { KNOWN_CRYPTO_SYMBOLS } from '@/lib/crypto-symbols';
 import type { AssetType, Holding } from '@/lib/types';
+import { usePortfolioStore } from '@/store/portfolioStore';
+import { withPortfolio } from '@/lib/portfolios';
 
 interface Props {
   onClose: () => void;
@@ -120,6 +122,7 @@ function parseCSV(text: string): ParsedRow[] {
 const today = new Date().toISOString().slice(0, 10);
 
 export default function CSVImportModal({ onClose, onImportComplete }: Props) {
+  const activePortfolio = usePortfolioStore((s) => s.activePortfolio);
   const [step, setStep] = useState<Step>('upload');
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [purchaseDate, setPurchaseDate] = useState(today);
@@ -183,7 +186,7 @@ export default function CSVImportModal({ onClose, onImportComplete }: Props) {
       const row = validRows[i];
       setProgress({ current: i + 1, total: validRows.length });
       try {
-        const res = await fetch('/api/holdings', {
+        const res = await fetch(withPortfolio('/api/holdings', activePortfolio), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

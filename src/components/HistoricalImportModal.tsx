@@ -3,6 +3,8 @@
 import { useRef, useState } from 'react';
 import { useModalBehavior } from '@/hooks/useModalBehavior';
 import type { DailySnapshot } from '@/lib/types';
+import { usePortfolioStore } from '@/store/portfolioStore';
+import { withPortfolio } from '@/lib/portfolios';
 
 interface Props {
   onClose: () => void;
@@ -99,6 +101,7 @@ function fmt(v: number) {
 }
 
 export default function HistoricalImportModal({ onClose, onImportComplete }: Props) {
+  const activePortfolio = usePortfolioStore((s) => s.activePortfolio);
   const [step, setStep] = useState<Step>('upload');
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [parseError, setParseError] = useState('');
@@ -152,7 +155,7 @@ export default function HistoricalImportModal({ onClose, onImportComplete }: Pro
     }));
 
     try {
-      const res = await fetch('/api/portfolio/snapshots/import', {
+      const res = await fetch(withPortfolio('/api/portfolio/snapshots/import', activePortfolio), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ snapshots }),

@@ -30,3 +30,8 @@ export function parsePortfolioParam(searchParams: URLSearchParams): PortfolioId 
   if (raw === null) return DEFAULT_PORTFOLIO;
   return isPortfolioId(raw) ? raw : null;
 }
+
+/** Appends `portfolio=<id>` to an API url that may or may not already have a query string. */
+export function withPortfolio(url: string, id: PortfolioId): string {
+  return `${url}${url.includes('?') ? '&' : '?'}portfolio=${id}`;
+}

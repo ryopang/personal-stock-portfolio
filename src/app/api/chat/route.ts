@@ -6,7 +6,7 @@ import { aiRatelimit, clientIp } from '@/lib/ratelimit';
 import { getMacroContext, formatMacroSection } from '@/lib/macro-context';
 import { getPortfolioWithMetrics } from '@/lib/portfolio-server';
 import { CHAT_SYSTEM_PROMPT, buildPortfolioContext } from '@/lib/prompts';
-import { parsePortfolioParam } from '@/lib/portfolios';
+import { DEFAULT_PORTFOLIO, isPortfolioId, type PortfolioId } from '@/lib/portfolios';
 import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_CHAT_RESPONSES } from '@/lib/demo-data';
 
@@ -63,15 +63,20 @@ export async function POST(req: NextRequest) {
     return demoChatResponse(response);
   }
 
-  const portfolioId = parsePortfolioParam(req.nextUrl.searchParams);
-  if (!portfolioId) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
-
   let messages: UIMessage[];
   let providerKey: ProviderKey = 'gemini';
   let lang: 'en' | 'zh-TW' = 'en';
+  let portfolioId: PortfolioId = DEFAULT_PORTFOLIO;
 
   try {
-    ({ messages, provider: providerKey, lang } = await req.json());
+    const body = await req.json();
+    ({ messages, provider: providerKey, lang } = body);
+    if (body.portfolio !== undefined) {
+      if (!isPortfolioId(body.portfolio)) {
+        return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
+      }
+      portfolioId = body.portfolio;
+    }
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
