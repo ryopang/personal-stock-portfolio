@@ -18,6 +18,13 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 ---
 ## Features
 
+### Multiple Portfolios
+- **Ryo / Joey / Shela switcher** — a segmented toggle in the header (always visible, even when a portfolio is empty) switches Holdings, Charts and Analysis between three separate portfolios. It always starts on Ryo and the tab you're on stays put when you switch
+- **Identical functionality for everyone** — add / edit / delete / clear, CSV and historical imports, bulk purchase-date edits, trend snapshots, AI analysis and the chatbot all operate on the selected person's portfolio
+- **AI output names the owner** — analysis reports open with "Joey's Portfolio Analysis" and refer to the owner by name; the chatbot does the same. The investment-profile prompt is shared by all three
+- **Fully isolated data** — each person has their own holdings, daily snapshots and cached AI analysis in Redis; only the macro-context commentary is shared
+- **Lock screen stays Ryo-only** — the password gate's daily gain/loss badge only ever shows Ryo's portfolio
+
 ### Holdings Management
 - Add holdings via **symbol autocomplete search** — type a ticker and pick from live Yahoo Finance suggestions
 - **Edit** any holding's quantity, cost basis, purchase date, industry label, or asset type
@@ -98,7 +105,6 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ### Admin
 - **Macro context editor** — write free-form market commentary (e.g., current rate environment, sector outlook) that is stored in Redis and automatically injected into every AI analysis prompt; keeps AI context current without changing code
-- **Rename portfolio** — edit the portfolio display name shown in the header; saved to Redis and reflected immediately without a page reload
 - **Password gate toggle** — enable or disable the client-side password gate from the Admin menu without redeploying
 - **Bulk edit purchase dates** — update purchase dates across multiple lots in a single modal
 - **Import** — unified entry that routes to CSV holdings import or historical snapshot import via a picker modal
@@ -126,8 +132,17 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ## Changelog
 
-### September 2026 (latest) — v0.2.0
-- **Ryo / Joey / Shela portfolio switcher** — a toggle in the header switches Holdings, Charts and Analysis (plus add/edit/import/clear, trend snapshots, AI analysis, chatbot) between three separate portfolios with identical functionality. Each person's holdings, daily snapshots and cached AI analysis live under their own Redis keys (`portfolio:joey:*`, `portfolio:shela:*`); Ryo's keys are unchanged, so no data migration. API routes take `?portfolio=ryo|joey|shela` (default `ryo`, unknown → 400). The switcher always starts on Ryo, and the password gate only ever shows Ryo's daily change. Macro context stays shared. The header now reads "Investment Portfolios" and the per-portfolio rename feature was removed.
+### September 2026 (latest) — v2.0.0
+**Multi-portfolio release.** One dashboard now tracks three people's portfolios — Ryo, Joey and Shela — with identical functionality for each.
+
+- **Portfolio switcher** — a Ryo | Joey | Shela toggle in the header switches Holdings, Charts and Analysis. It lives in the always-visible header (not the view tabs, which hide for an empty portfolio) so an empty portfolio can never strand you. Always starts on Ryo; switching keeps you on the same tab, clears mover/alert filters, and resets the chatbot conversation. Rapid A→B→A switching can't show stale data (the store is emptied on switch and late responses are discarded); a failed load shows a retry card instead of a misleading empty state.
+- **Fully isolated per-person data** — holdings, daily snapshots (trend chart) and cached AI analysis each live under per-person Redis keys (`portfolio:joey:*`, `portfolio:shela:*`). Ryo's keys are unchanged, so **no data migration**. Macro context stays shared.
+- **API: `?portfolio=ryo|joey|shela`** on `/api/holdings`, `/api/holdings/[id]`, `/api/portfolio/snapshots` (+ `/import`) and `/api/analysis`; `/api/chat` takes a `portfolio` body field. Missing → `ryo`, unknown → `400`. New `src/lib/portfolios.ts` holds ids, labels, key helpers and parsing. `getHoldings` / `getPortfolioWithMetrics` and the holdings CRUD helpers now take a portfolio id.
+- **AI names the owner** — the analysis and chatbot prompts now say "Joey's portfolio" / "Shela's portfolio" / "Ryo's portfolio" instead of "my portfolio". Analysis reports open with "<Name>'s Portfolio Analysis" and refer to the owner by name rather than "you". The rest of the prompt (buy-and-hold, long-term profile) is shared unchanged.
+- **Password gate stays Ryo-only** — unchanged behaviour and password; the lock screen's daily gain/loss badge is now explicitly guarded to Ryo's portfolio, so Joey's or Shela's numbers can never appear on it. Snapshot writes are filed under whichever person's holdings produced them.
+- **Header is now a fixed "Investment Portfolios" title** — with per-person switching, a single editable portfolio name no longer made sense, so **Admin → Rename portfolio and the `/api/portfolio-name` route were removed**. (The old `portfolio:name` key is left untouched in Redis and is simply no longer read.)
+- **Behaviour to know about** — the Admin menu, imports and Clear all act on whichever person is selected; the "Clear all" and other prompts operate on that portfolio only. Demo mode is unaffected (the switcher is hidden; the demo stays a single read-only portfolio).
+- **Verification** — checked against real Redis: Joey's holding, snapshot and analysis cache stayed separate from Ryo's, Shela's empty state rendered, switching back restored all of Ryo's holdings, invalid portfolio ids returned 400, and the lock screen showed only Ryo's figure. Test data was removed afterward. Lint is unchanged from v0.1.2 (pre-existing issues only); no automated test suite exists.
 
 ### September 2026 — v0.1.2
 - **Claude analysis no longer times out on Vercel Hobby** — Claude Sonnet 5 / Opus 5's adaptive extended thinking has no hard token cap, and for the full six-part portfolio analysis, combined reasoning + text generation routinely took 65–106s — past the Hobby plan's 60s function limit, so the request was killed mid-stream and the panel never finished loading. `maxOutputTokens` alone couldn't fix this (cutting it just truncated the answer instead of speeding it up), since the model only supports `thinking.type: 'adaptive'` — there's no API-level way to hard-cap reasoning tokens. Fixed by asking Claude for a shorter answer instead: a per-provider `wordLimit` is now injected into the analysis prompt (Claude only — Gemini's prompt is unchanged), paired with tuned `maxOutputTokens` per model (Opus reasons noticeably more than Sonnet at the same effort level, so it gets a tighter cap). Verified directly against the Anthropic API with the real prompt: Sonnet now finishes complete in ~50s, Opus in ~48s.
@@ -218,6 +233,16 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 **Manual refresh, not polling** — quotes are not auto-refreshed on a timer. The user explicitly triggers a refresh, which keeps Yahoo Finance API usage low and avoids stale-data surprises mid-session.
 
+**One codebase, three portfolios** — every portfolio-scoped API route takes `?portfolio=ryo|joey|shela` (missing → `ryo`, unknown → `400`, so a typo can never write to the wrong person). Redis keys are namespaced per person, and Ryo's keys keep their original un-prefixed names so pre-existing data needed no migration:
+
+| Data | Ryo | Joey / Shela |
+|---|---|---|
+| Holdings | `portfolio:holdings` | `portfolio:<id>:holdings` |
+| Daily snapshots | `portfolio:snapshots` | `portfolio:<id>:snapshots` |
+| AI analysis cache | `portfolio:analysis` | `portfolio:<id>:analysis` |
+
+Macro context (`portfolio:macro-context`) is shared. Components that hold per-person state (charts, analysis, chatbot, holdings table) are keyed by the active portfolio so switching remounts them cleanly.
+
 **Snapshots on demand** — each quote refresh writes a daily snapshot to Redis. This builds up a historical record over time that powers the trend chart, without requiring any scheduled jobs or background workers.
 
 **Three AI providers behind a unified SDK** — Gemini, Claude Sonnet, and Claude Opus are registered in `src/lib/ai-providers.ts` and accessed through the Vercel AI SDK's `streamText`. Adding a new provider is a one-entry change to the registry. Responses stream token-by-token so the UI renders progressively.
@@ -243,9 +268,8 @@ src/
 │   │   ├── analysis/      # AI analysis endpoint (streaming, rate-limited)
 │   │   ├── chat/          # Streaming Investment Advisor chatbot endpoint
 │   │   ├── history/       # Per-symbol price history
-│   │   ├── holdings/      # CRUD for portfolio holdings
+│   │   ├── holdings/      # CRUD for portfolio holdings (?portfolio=ryo|joey|shela)
 │   │   ├── macro-context/ # Admin read/write for market commentary
-│   │   ├── portfolio-name/ # Admin read/write for portfolio display name
 │   │   ├── news/          # Market and portfolio news
 │   │   ├── portfolio/     # Snapshot read/write
 │   │   ├── quotes/        # Batch live price fetching
@@ -279,6 +303,7 @@ src/
 │   ├── yahoo.ts           # Yahoo Finance singleton
 │   ├── redis.ts           # Upstash Redis singleton
 │   ├── holdings-service.ts
+│   ├── portfolios.ts      # Portfolio ids, labels, per-portfolio Redis keys, ?portfolio= parsing
 │   ├── ai-providers.ts    # Provider registry (Gemini, Claude Sonnet, Claude Opus)
 │   ├── prompts.ts         # All AI prompt text and builders
 │   ├── ratelimit.ts       # @upstash/ratelimit config (20 req/hr per IP)

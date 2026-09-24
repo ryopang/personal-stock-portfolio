@@ -49,6 +49,12 @@ A personal Next.js investment portfolio tracker. Stocks, ETFs, and crypto in one
 - Yahoo Finance fetch: `BTC-USD`, `ETH-USD`, etc.
 - Use `toYahooSymbol()` / `fromYahooSymbol()` from `src/lib/crypto-symbols.ts` to convert.
 
+### Multiple portfolios (Ryo / Joey / Shela)
+- Every portfolio-scoped API route reads `?portfolio=ryo|joey|shela` via `parsePortfolioParam()` (`src/lib/portfolios.ts`); missing → `ryo`, unknown → 400. `/api/chat` takes `portfolio` in the body.
+- Redis keys come from `portfolioKey(id, dataset)`. Ryo's keys are un-prefixed (`portfolio:holdings`); others are `portfolio:<id>:holdings` etc. Never hardcode these keys. Macro context is shared.
+- Client code reads `activePortfolio` from `portfolioStore` and builds URLs with `withPortfolio()`. Components with per-person state are `key={activePortfolio}`'d in `Dashboard.tsx`.
+- The password gate must only ever show Ryo's data.
+
 ### Next.js page caching
 - Use `export const dynamic = 'force-dynamic'` in route handlers that must always read fresh Redis data.
 

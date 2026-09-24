@@ -482,7 +482,9 @@ export default function Dashboard({ initialHoldings }: Props) {
             </div>
           </div>
         </div>
-        {/* Portfolio switcher — lives in the header (not the tabs) so it stays reachable when a portfolio is empty */}
+        {/* Portfolio switcher — lives in the header (not the tabs) so it stays reachable when a portfolio is empty.
+            Hidden in demo mode: the demo has a single read-only portfolio. */}
+        {!DEMO_MODE && (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-2">
           <div role="group" aria-label="Portfolio" className="inline-flex rounded-lg p-0.5" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
             {PORTFOLIO_IDS.map((id) => (
@@ -503,6 +505,7 @@ export default function Dashboard({ initialHoldings }: Props) {
             ))}
           </div>
         </div>
+        )}
       </header>
 
       {/* View tabs + portfolio summary inside the sticky band */}
