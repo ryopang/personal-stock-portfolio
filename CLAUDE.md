@@ -85,7 +85,7 @@ A personal Next.js investment portfolio tracker. Stocks, ETFs, and crypto in one
 
 **Redis is the source of truth** — Zustand holds in-memory UI state only. On server error, roll back by re-fetching from `/api/holdings`.
 
-**Snapshots are written on every quote refresh** — one `DailySnapshot` per day stored in Redis. This powers the trend chart without background jobs.
+**Snapshots are written on every quote refresh** — one `DailySnapshot` per day stored in Redis. This powers the trend chart without background jobs. `GET /api/portfolio/snapshots` also backfills earlier days from purchase dates + Yahoo prices (`src/lib/history-backfill.ts`); recorded snapshots always win, and for Ryo only dates before his first stored snapshot are filled.
 
 **Optimistic mutations** — add/edit/delete update Zustand immediately, then hit the API. Roll back to Redis state on failure.
 
