@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { Fragment, useEffect, useRef, useState, useCallback } from 'react';
 import { mutate } from 'swr';
 import { usePortfolioStore } from '@/store/portfolioStore';
 import { usePortfolio } from '@/hooks/usePortfolio';
@@ -23,10 +23,15 @@ import AnalysisTab from './AnalysisTab';
 import InvestmentChatbot from './InvestmentChatbot';
 import { SummarySkeleton, TableSkeleton } from './LoadingSkeleton';
 import type { Holding, HoldingWithMetrics, AssetType } from '@/lib/types';
-import { PORTFOLIO_IDS, PORTFOLIO_LABELS, withPortfolio, type PortfolioId } from '@/lib/portfolios';
+import { PORTFOLIO_IDS, PORTFOLIO_LABELS, isCombinedPortfolio, withPortfolio, type PortfolioId } from '@/lib/portfolios';
 
 interface Props {
   initialHoldings: Holding[];
+}
+
+/** Switcher label: Ryo's is lowercase to match the 'r' icon. */
+function portfolioName(id: PortfolioId): string {
+  return id === 'ryo' ? 'ryo' : PORTFOLIO_LABELS[id];
 }
 
 export default function Dashboard({ initialHoldings }: Props) {
@@ -38,6 +43,9 @@ export default function Dashboard({ initialHoldings }: Props) {
   const holdings = usePortfolioStore((s) => s.holdings);
   const activePortfolio = usePortfolioStore((s) => s.activePortfolio);
   const setActivePortfolio = usePortfolioStore((s) => s.setActivePortfolio);
+  // Combined portfolios (r+J) are views over other portfolios, so nothing can be written to them.
+  const readOnly = isCombinedPortfolio(activePortfolio);
+  const locked = DEMO_MODE || readOnly;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<HoldingWithMetrics | null>(null);
@@ -377,14 +385,14 @@ export default function Dashboard({ initialHoldings }: Props) {
                   onClick={() => setPortfolioMenuOpen((v) => !v)}
                   className="btn-secondary rounded-lg"
                   style={{ padding: '0.625rem', touchAction: 'manipulation' }}
-                  aria-label={`Portfolio: ${activePortfolio === 'ryo' ? 'ryo' : PORTFOLIO_LABELS[activePortfolio]}`}
+                  aria-label={`Portfolio: ${portfolioName(activePortfolio)}`}
                   aria-haspopup="menu"
                   aria-expanded={portfolioMenuOpen}
-                  title={`Portfolio: ${activePortfolio === 'ryo' ? 'ryo' : PORTFOLIO_LABELS[activePortfolio]}`}
+                  title={`Portfolio: ${portfolioName(activePortfolio)}`}
                 >
-                  {/* Initial of the active portfolio: r / J / S */}
+                  {/* Initial of the active portfolio: r / J / S, or r+J */}
                   <span className="w-4 h-4 flex items-center justify-center text-sm font-semibold leading-none">
-                    {activePortfolio === 'ryo' ? 'r' : PORTFOLIO_LABELS[activePortfolio][0]}
+                    {activePortfolio === 'ryo' ? 'r' : activePortfolio === 'rj' ? 'r+J' : PORTFOLIO_LABELS[activePortfolio][0]}
                   </span>
                 </button>
                 {portfolioMenuOpen && (
@@ -394,21 +402,24 @@ export default function Dashboard({ initialHoldings }: Props) {
                     style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
                   >
                     {PORTFOLIO_IDS.map((id) => (
+                      <Fragment key={id}>
+                      {/* Divider between the combined view and the standalone Shela portfolio */}
+                      {id === 'shela' && <div role="separator" className="my-1 border-t" style={{ borderColor: 'var(--color-border)' }} />}
                       <button
-                        key={id}
                         role="menuitemradio"
                         aria-checked={activePortfolio === id}
                         onClick={() => { setPortfolioMenuOpen(false); switchPortfolio(id); }}
                         className="w-full flex items-center justify-between px-4 py-2 text-sm text-left text-primary hover:bg-surface-secondary transition-colors"
                         style={{ touchAction: 'manipulation' }}
                       >
-                        <span>{id === 'ryo' ? 'ryo' : PORTFOLIO_LABELS[id]}</span>
+                        <span>{portfolioName(id)}</span>
                         {activePortfolio === id && (
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                           </svg>
                         )}
                       </button>
+                      </Fragment>
                     ))}
                   </div>
                 )}
@@ -441,11 +452,11 @@ export default function Dashboard({ initialHoldings }: Props) {
                   )}
                   {/* Add holding */}
                   <button
-                    onClick={() => { if (DEMO_MODE) return; setAdminOpen(false); handleAdd(); }}
-                    disabled={DEMO_MODE}
-                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${DEMO_MODE ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
+                    onClick={() => { if (locked) return; setAdminOpen(false); handleAdd(); }}
+                    disabled={locked}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
                     style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
-                    title={DEMO_MODE ? 'Not available in demo mode' : undefined}
+                    title={DEMO_MODE ? 'Not available in demo mode' : readOnly ? 'Switch to Ryo or Joey to make changes' : undefined}
                   >
                     <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -454,11 +465,11 @@ export default function Dashboard({ initialHoldings }: Props) {
                   </button>
                   {/* Import */}
                   <button
-                    onClick={() => { if (DEMO_MODE) return; setAdminOpen(false); setImportPickerOpen(true); }}
-                    disabled={DEMO_MODE}
-                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${DEMO_MODE ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
+                    onClick={() => { if (locked) return; setAdminOpen(false); setImportPickerOpen(true); }}
+                    disabled={locked}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
                     style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
-                    title={DEMO_MODE ? 'Not available in demo mode' : undefined}
+                    title={DEMO_MODE ? 'Not available in demo mode' : readOnly ? 'Switch to Ryo or Joey to make changes' : undefined}
                   >
                     <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -481,11 +492,11 @@ export default function Dashboard({ initialHoldings }: Props) {
                   {/* Edit purchase dates */}
                   {(holdings.length > 0 || DEMO_MODE) && (
                     <button
-                      onClick={() => { if (DEMO_MODE) return; setAdminOpen(false); setEditDatesOpen(true); }}
-                      disabled={DEMO_MODE}
-                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${DEMO_MODE ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
+                      onClick={() => { if (locked) return; setAdminOpen(false); setEditDatesOpen(true); }}
+                      disabled={locked}
+                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
                       style={{ color: 'var(--color-primary)', touchAction: 'manipulation' }}
-                      title={DEMO_MODE ? 'Not available in demo mode' : undefined}
+                      title={DEMO_MODE ? 'Not available in demo mode' : readOnly ? 'Switch to Ryo or Joey to make changes' : undefined}
                     >
                       <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
@@ -520,7 +531,7 @@ export default function Dashboard({ initialHoldings }: Props) {
                     {gateEnabled ? 'Disable password' : 'Enable password'}
                   </button>
                   {/* Clear all — hidden in demo, visible (with condition) in prod */}
-                  {!DEMO_MODE && holdings.length > 0 && (
+                  {!DEMO_MODE && !readOnly && holdings.length > 0 && (
                     <>
                       <div className="my-1 border-t" style={{ borderColor: 'var(--color-border)' }} />
                       <button
@@ -619,14 +630,14 @@ export default function Dashboard({ initialHoldings }: Props) {
             <button className="btn-secondary" onClick={() => setLoadAttempt((n) => n + 1)}>Retry</button>
           </div>
         ) : holdings.length === 0 && !isLoading ? (
-          <EmptyState onAdd={handleAdd} />
+          <EmptyState onAdd={readOnly ? undefined : handleAdd} />
         ) : activeView === 'portfolio' ? (
           <HoldingsSection
             key={activePortfolio}
             holdings={holdingsWithMetrics}
             isLoading={isLoading}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
+            onEdit={readOnly ? undefined : handleEdit}
+            onDelete={readOnly ? undefined : handleDelete}
             moverFilter={moverFilter}
             onClearMoverFilter={() => setMoverFilter(null)}
             alertFilter={alertFilter}

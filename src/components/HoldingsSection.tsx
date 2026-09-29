@@ -53,8 +53,8 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 interface Props {
   holdings: HoldingWithMetrics[];
   isLoading: boolean;
-  onEdit: (holding: HoldingWithMetrics) => void;
-  onDelete: (id: string) => void;
+  onEdit?: (holding: HoldingWithMetrics) => void;
+  onDelete?: (id: string) => void;
   moverFilter?: 'gainers' | 'losers' | null;
   onClearMoverFilter?: () => void;
   alertFilter: boolean;
@@ -70,6 +70,8 @@ function computeAggregate(lots: HoldingWithMetrics[]): HoldingWithMetrics {
   const dailyChange = lots.reduce((s, h) => s + h.dailyChange, 0);
   return {
     ...first,
+    // Group rows carry no owner badge; it shows on the individual lots once expanded.
+    owner: undefined,
     id: `group-${first.symbol}`,
     quantity: totalQuantity,
     costBasis: totalCost / totalQuantity,

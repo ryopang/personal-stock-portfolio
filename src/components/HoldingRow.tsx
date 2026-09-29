@@ -35,8 +35,9 @@ function FiftyTwoWeekBar({ low, high, current }: { low: number; high: number; cu
 
 interface Props {
   holding: HoldingWithMetrics;
-  onEdit: (holding: HoldingWithMetrics) => void;
-  onDelete: (id: string) => void;
+  /** Omitted (with onDelete) for read-only views, which hides the edit/delete buttons. */
+  onEdit?: (holding: HoldingWithMetrics) => void;
+  onDelete?: (id: string) => void;
   isChild?: boolean;
 }
 
@@ -45,6 +46,22 @@ interface GroupSummaryProps {
   aggregate: HoldingWithMetrics;
   expanded: boolean;
   onToggle: () => void;
+}
+
+/** Tiny r / J tag showing whose lot this is. Only present in the combined r+J view. */
+export function OwnerBadge({ owner }: { owner?: 'ryo' | 'joey' }) {
+  if (!owner) return null;
+  const isRyo = owner === 'ryo';
+  return (
+    <span
+      className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold leading-none shrink-0"
+      style={isRyo ? { backgroundColor: 'rgba(0,113,227,0.14)', color: '#0071E3' } : { backgroundColor: 'rgba(175,82,222,0.16)', color: '#AF52DE' }}
+      title={isRyo ? 'Ryo' : 'Joey'}
+      aria-label={`Owned by ${isRyo ? 'Ryo' : 'Joey'}`}
+    >
+      {isRyo ? 'r' : 'J'}
+    </span>
+  );
 }
 
 // Desktop table row
@@ -72,7 +89,8 @@ export function HoldingTableRow({ holding, onEdit, onDelete, isChild }: Props) {
               </svg>
             )}
           </div>
-          <span className={`font-semibold text-sm ${isChild ? 'text-secondary' : 'text-primary'}`}>{holding.symbol.replace(/-USD$/, '')}</span>
+          <span className={`font-semibold text-sm ${isChild ? 'text-secondary' : 'text-primary'}`}>{holding.symbol.replace(/-USD$/, '')}</span><OwnerBadge owner={isChild ? holding.owner : undefined} />
+          {onEdit && onDelete && (
           <div className="flex items-center gap-1 transition-opacity duration-150 opacity-0 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
             <button
               onClick={() => onEdit(holding)}
@@ -95,6 +113,7 @@ export function HoldingTableRow({ holding, onEdit, onDelete, isChild }: Props) {
               </svg>
             </button>
           </div>
+          )}
         </div>
       </td>
 
@@ -378,13 +397,14 @@ export function HoldingCard({ holding, onEdit, onDelete, isChild }: Props) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75" />
               </svg>
             )}
-            <span className="font-bold text-primary">{holding.symbol.replace(/-USD$/, '')}</span>
+            <span className="font-bold text-primary">{holding.symbol.replace(/-USD$/, '')}</span><OwnerBadge owner={isChild ? holding.owner : undefined} />
             {holding.industry && (
               <span className="text-xs text-secondary">{holding.industry}</span>
             )}
           </div>
           <p className="text-xs text-secondary mt-0.5 line-clamp-1">{holding.name}</p>
         </div>
+        {onEdit && onDelete && (
         <div className="flex items-center gap-1">
           <button
             onClick={() => onEdit(holding)}
@@ -405,6 +425,7 @@ export function HoldingCard({ holding, onEdit, onDelete, isChild }: Props) {
             </svg>
           </button>
         </div>
+        )}
       </div>
 
       {/* Value + price row */}

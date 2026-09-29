@@ -23,6 +23,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 - **Identical functionality for everyone** — add / edit / delete / clear, CSV and historical imports, bulk purchase-date edits, trend snapshots, AI analysis and the chatbot all operate on the selected person's portfolio
 - **AI output names the owner** — analysis reports open with "xxx's Portfolio Analysis" and refer to the owner by name; the chatbot does the same. The investment-profile prompt is shared by all three
 - **Fully isolated data** — each person has their own holdings, daily snapshots and cached AI analysis in Redis; only the macro-context commentary is shared
+- **r+J combined view** — a fourth switcher entry (`r+J`) shows Ryo's and Joey's holdings merged. It is **read-only**: edit/delete buttons are hidden, Add / Import / Edit dates / Clear all are disabled, and write routes return 403. Lots of the same symbol group together; expanding a multi-lot row tags each lot with a small **r** or **J** badge. In Charts, the industry table adds a per-person split (r / J) under Cost, Value, Daily and Total G/L for industries both of you hold; the trend line sums both histories. Analysis and the chatbot run on the combined holdings ("Ryo & Joey's Portfolio") and cache separately
 - **Lock screen stays Ryo-only** — the password gate's daily gain/loss badge only ever shows Ryo's portfolio
 
 ### Holdings Management
@@ -58,9 +59,9 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 - **Clear** button appears when an industry is selected
 
 #### Portfolio Trend Line Chart
-- Plots historical **portfolio value**, **total gain/loss**, or **total return %** — switchable via dropdown
-- Time range pills: **1W, 1M, 3M, 6M, YTD**, per-calendar-year buttons counting down from the latest year (e.g. `26'`, `25'`, `24'`), and **MAX**
-- **If not invested** toggle (Portfolio Trend view) — dashed grey line showing the period's starting value held as cash plus any money added since (step-ups in cost basis); the summary shows the gap vs cash and the tooltip shows the difference on any date
+- Plots historical **portfolio value**, **total gain/loss**, or **total return %** — switchable via dropdown (**Trend**, **G/L**, **Return %**)
+- Time range pills: **1W, 1M, 3M, 6M, YTD**, per-calendar-year buttons counting down from the latest year (e.g. `26'`, `25'`, `24'`), with **MAX** right after YTD
+- **If not invested** icon toggle (Trend view; the benchmark toggle is icon-only too) — dashed grey line showing the period's starting value held as cash plus any money added since (step-ups in cost basis); the summary shows the gap vs cash and the tooltip shows the difference on any date
 - **History from the first purchase** — days not covered by stored snapshots are rebuilt from each lot's purchase date and Yahoo closing prices, so every portfolio's chart runs from its first purchase. imported history is kept as-is and only extended earlier
 - X-axis labels use calendar midpoints for clean, evenly-spaced date ticks regardless of partial periods
 - Hover to see a crosshair + tooltip with the exact value for that date
@@ -134,7 +135,15 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ## Changelog
 
-### September 2026 (latest) — v2.1.0
+### September 2026 (latest) — v2.2.0
+**Combined r+J portfolio.**
+- **New `rj` portfolio** in the switcher (between Joey and Shela, with a divider above Shela). `src/lib/portfolios.ts` now has `isCombinedPortfolio()` / `portfolioMembers()`; `getHoldings('rj')` returns Ryo's and Joey's lots together, each tagged with an in-memory `owner` (never stored). `/api/portfolio/snapshots` sums the members' histories day by day (carrying a member's last value forward across gaps); AI prompts use `PORTFOLIO_OWNER_NAMES` ("Ryo & Joey").
+- **Read-only by design** — holdings POST/PUT/DELETE, snapshot POST and import return 403 for `rj`, the UI hides/disables every write control, and the combined view never writes snapshots.
+- **Owner badges and split table** — r / J tags on expanded lots; per-person split in the Charts industry table when both people hold the industry.
+- **Chart polish for all profiles** — MAX sits next to YTD; mode dropdown renamed Trend / G/L / Return %; the benchmark and "If not invested" toggles are icon-only.
+- **Known caveat** — the "If not invested" line derives added money from stored daily cost-basis changes, so it can differ from the sum of 2026-dated lots (e.g. reinvested sale proceeds count as new money).
+
+### September 2026 — v2.1.0
 **Trend chart and switcher polish.**
 - **Switcher is now an icon dropdown** beside Admin, showing the active profile's initial instead of a segmented control under the date.
 - **Full history for every portfolio** — the snapshots API rebuilds days not covered by stored snapshots from purchase dates and Yahoo prices (`src/lib/history-backfill.ts`, cached for an hour). Profiles with only a few days of recorded snapshots previously showed a short chart with no x-axis labels (the chart labels calendar midpoints, and a few days can contain none). The first profile's imported CSV range is untouched, and its chart now extends back to its first purchase. `MAX_DAYS` raised to 7300. Rebuilt history uses *current* holdings, so sold positions aren't reflected and there can be a step where it meets an imported range.

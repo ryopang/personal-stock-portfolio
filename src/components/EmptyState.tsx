@@ -1,5 +1,5 @@
 interface Props {
-  onAdd: () => void;
+  onAdd?: () => void;
 }
 
 export default function EmptyState({ onAdd }: Props) {
@@ -24,13 +24,15 @@ export default function EmptyState({ onAdd }: Props) {
       <p className="text-secondary text-sm mb-6 max-w-xs">
         Add your first stock, ETF, or crypto holding to start tracking your portfolio performance.
       </p>
-      <button
-        onClick={onAdd}
-        className="btn-primary"
-        style={{ touchAction: 'manipulation' }}
-      >
-        Add your first holding
-      </button>
+      {onAdd && (
+        <button
+          onClick={onAdd}
+          className="btn-primary"
+          style={{ touchAction: 'manipulation' }}
+        >
+          Add your first holding
+        </button>
+      )}
     </div>
   );
 }

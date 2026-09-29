@@ -14,6 +14,8 @@ const COLORS = [
   '#5AC8FA', '#FFCC00', '#FF2D55', '#32ADE6', '#30D158',
 ];
 
+interface SliceFigures { value: number; dailyChange: number; totalGain: number; totalCost: number }
+
 interface Slice {
   industry: string;
   count: number;
@@ -24,6 +26,8 @@ interface Slice {
   totalGain: number;
   totalGainPct: number;
   totalCost: number;
+  /** Per-owner breakdown; only present in the combined r+J view. */
+  split?: Record<'ryo' | 'joey', SliceFigures>;
   color: string;
   startAngle: number;
   endAngle: number;
@@ -57,6 +61,22 @@ function fmtMoney(v: number) {
 function fmtMoneyFull(v: number) {
   const abs = Math.abs(v);
   return `${v < 0 ? '-' : '+'}$${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+/** Two short lines ("r $12K" / "J $3.1K") under a table figure, in the combined r+J view. */
+function SplitLine({ ryo, joey, fmt, signed }: { ryo: number; joey: number; fmt: (v: number) => string; signed?: boolean }) {
+  // A person with nothing in this industry gets no line at all.
+  const row = (tag: string, tagColor: string, v: number) => v === 0 ? null : (
+    <div className="flex items-center justify-center gap-1">
+      <span className="font-bold" style={{ color: tagColor }}>{tag}</span>
+      <span style={signed ? { color: v >= 0 ? 'var(--color-gain)' : 'var(--color-loss)' } : undefined}>{fmt(v)}</span>
+    </div>
+  );
+  return (
+    <div className="tabular-nums text-2xs font-medium text-secondary whitespace-nowrap mt-0.5 leading-tight">
+      {row('r', '#0071E3', ryo)}
+      {row('J', '#AF52DE', joey)}
+    </div>
+  );
 }
 function fmtPct(v: number) { return `${sign(v)}${v.toFixed(2)}%`; }
 
@@ -92,9 +112,9 @@ function calendarMidpointIdxs(dates: string[], period: 'month' | 'year'): number
 type ChartMode = 'value' | 'gain' | 'return';
 
 const CHART_MODES: { id: ChartMode; label: string }[] = [
-  { id: 'value',  label: 'Portfolio Trend' },
-  { id: 'gain',   label: 'Total G/L' },
-  { id: 'return', label: 'Total Return %' },
+  { id: 'value',  label: 'Trend' },
+  { id: 'gain',   label: 'G/L' },
+  { id: 'return', label: 'Return %' },
 ];
 
 function rangeLabel(r: string): string {
@@ -225,6 +245,7 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
 
   const showIndustryOverlays = mode !== 'return';
   const hasSelectedIndustry = enabled.size > 0;
+
 
   // Auto-disable benchmark when an industry is selected (incompatible views)
   useEffect(() => {
@@ -486,7 +507,9 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
           </select>
           <button
             onClick={() => !hasSelectedIndustry && setShowBenchmark(b => !b)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all shrink-0"
+            aria-label="vs Benchmark"
+            title="vs Benchmark"
+            className="flex items-center justify-center p-1.5 rounded-full text-xs font-semibold transition-all shrink-0"
             style={{
               backgroundColor: showBenchmark ? '#FF9500' : 'var(--color-surface-secondary)',
               color: showBenchmark ? '#fff' : 'var(--color-secondary)',
@@ -498,7 +521,6 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3" />
             </svg>
-            vs Benchmark
           </button>
           {showBenchmark && (
             <select
@@ -520,7 +542,8 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
           <button
             onClick={() => cashAvailable && setShowCashLine(v => !v)}
             title={cashAvailable ? 'Compare with the same money held as cash' : 'Available in Portfolio Trend view'}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all shrink-0"
+            aria-label="If not invested"
+            className="flex items-center justify-center p-1.5 rounded-full text-xs font-semibold transition-all shrink-0"
             style={{
               backgroundColor: showCash ? '#8E8E93' : 'var(--color-surface-secondary)',
               color: showCash ? '#fff' : 'var(--color-secondary)',
@@ -532,11 +555,10 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 12h4m3 0h4m3 0h4" />
             </svg>
-            If not invested
           </button>
         </div>
         <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {(['1w', '1m', '3m', '6m', 'ytd', ...[...years].reverse(), 'max'] as string[]).map(r => (
+          {(['1w', '1m', '3m', '6m', 'ytd', 'max', ...[...years].reverse()] as string[]).map(r => (
             <button
               key={r}
               onClick={() => { setTimeRange(r); setHoverIdx(null); }}
@@ -1152,13 +1174,21 @@ export default function ChartsView({ holdings }: Props) {
   }
 
   const slices = useMemo((): Slice[] => {
-    const map = new Map<string, { value: number; dailyChange: number; totalGain: number; totalCost: number; symbols: Set<string> }>();
+    type Bucket = SliceFigures & { symbols: Set<string>; split: Record<'ryo' | 'joey', SliceFigures> };
+    const zero = (): SliceFigures => ({ value: 0, dailyChange: 0, totalGain: 0, totalCost: 0 });
+    const map = new Map<string, Bucket>();
     for (const h of holdings) {
       const key = h.industry?.trim() || 'Other';
-      const p = map.get(key) ?? { value: 0, dailyChange: 0, totalGain: 0, totalCost: 0, symbols: new Set() };
+      const p = map.get(key) ?? { ...zero(), symbols: new Set(), split: { ryo: zero(), joey: zero() } };
       p.symbols.add(h.symbol);
-      map.set(key, { value: p.value + h.currentValue, dailyChange: p.dailyChange + h.dailyChange, totalGain: p.totalGain + h.totalGain, totalCost: p.totalCost + h.totalCost, symbols: p.symbols });
+      p.value += h.currentValue; p.dailyChange += h.dailyChange; p.totalGain += h.totalGain; p.totalCost += h.totalCost;
+      if (h.owner) {
+        const o = p.split[h.owner];
+        o.value += h.currentValue; o.dailyChange += h.dailyChange; o.totalGain += h.totalGain; o.totalCost += h.totalCost;
+      }
+      map.set(key, p);
     }
+    const combined = holdings.some((h) => h.owner);
     const total = [...map.values()].reduce((s, v) => s + v.value, 0);
     const sorted = [...map.entries()].sort(([, a], [, b]) => b.value - a.value);
     let angle = 0;
@@ -1173,6 +1203,8 @@ export default function ChartsView({ holdings }: Props) {
         totalGain: d.totalGain,
         totalGainPct: d.totalCost > 0 ? (d.totalGain / d.totalCost) * 100 : 0,
         totalCost: d.totalCost,
+        // Only worth showing when both people hold something in this industry.
+        split: combined && d.split.ryo.totalCost > 0 && d.split.joey.totalCost > 0 ? d.split : undefined,
         startAngle: angle, endAngle: angle + sweep,
       };
       // eslint-disable-next-line react-hooks/immutability
@@ -1306,20 +1338,24 @@ export default function ChartsView({ holdings }: Props) {
                       {/* Cost — hidden on mobile */}
                       <td className="hidden sm:table-cell py-1.5 px-2 md:px-4 text-center tabular-nums text-xs md:text-sm font-semibold text-primary whitespace-nowrap">
                         {formatCurrencyK(slice.totalCost)}
+                        {slice.split && <SplitLine ryo={slice.split.ryo.totalCost} joey={slice.split.joey.totalCost} fmt={formatCurrencyK} />}
                       </td>
                       {/* Value */}
                       <td className="py-1.5 px-2 md:px-4 text-center tabular-nums text-xs md:text-sm font-semibold text-primary whitespace-nowrap">
                         {formatCurrencyK(slice.value)}
+                        {slice.split && <SplitLine ryo={slice.split.ryo.value} joey={slice.split.joey.value} fmt={formatCurrencyK} />}
                       </td>
                       {/* Daily change */}
                       <td className="py-1.5 px-2 md:px-4 text-center whitespace-nowrap" style={{ color: dailyColor }}>
                         <div className="tabular-nums text-xs md:text-sm font-semibold">{fmtMoneyFull(slice.dailyChange)}</div>
                         <div className="tabular-nums text-2xs md:text-xs opacity-75">{fmtPct(slice.dailyChangePct)}</div>
+                        {slice.split && <SplitLine ryo={slice.split.ryo.dailyChange} joey={slice.split.joey.dailyChange} fmt={fmtMoney} signed />}
                       </td>
                       {/* Total gain/loss */}
                       <td className="py-1.5 pl-2 md:pl-4 text-center whitespace-nowrap" style={{ color: gainColor }}>
                         <div className="tabular-nums text-xs md:text-sm font-semibold">{fmtMoney(slice.totalGain)}</div>
                         <div className="tabular-nums text-2xs md:text-xs opacity-75">{fmtPct(slice.totalGainPct)}</div>
+                        {slice.split && <SplitLine ryo={slice.split.ryo.totalGain} joey={slice.split.joey.totalGain} fmt={fmtMoney} signed />}
                       </td>
                     </tr>
                   );
@@ -1331,7 +1367,7 @@ export default function ChartsView({ holdings }: Props) {
         </div>
       </div>
 
-      {/* ── Trend chart (Portfolio Trend / Total G/L / Total Return %) ── */}
+      {/* ── Trend chart (Trend / G/L / Return %) ── */}
       <TrendChart industryColors={industryColors} enabled={selectedIndustries} />
 
       {/* ── Individual stock price trend ── */}

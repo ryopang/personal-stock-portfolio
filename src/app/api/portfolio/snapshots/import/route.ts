@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import redis from '@/lib/redis';
 import type { DailySnapshot } from '@/lib/types';
 import { DEMO_MODE } from '@/lib/demo-mode';
-import { parsePortfolioParam, portfolioKey } from '@/lib/portfolios';
+import { parsePortfolioParam, portfolioKey, isCombinedPortfolio, COMBINED_READ_ONLY_ERROR } from '@/lib/portfolios';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
   }
   const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
   if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
+  if (isCombinedPortfolio(portfolio)) return NextResponse.json({ error: COMBINED_READ_ONLY_ERROR }, { status: 403 });
   try {
     const { snapshots } = await req.json() as { snapshots: DailySnapshot[] };
 

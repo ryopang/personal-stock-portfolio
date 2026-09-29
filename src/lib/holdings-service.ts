@@ -1,10 +1,18 @@
 import redis from './redis';
 import type { Holding } from './types';
-import { portfolioKey, type PortfolioId } from './portfolios';
+import { isCombinedPortfolio, portfolioKey, portfolioMembers, type PortfolioId } from './portfolios';
 
 const holdingsKey = (p: PortfolioId) => portfolioKey(p, 'holdings');
 
+/** Lots are UUID-keyed, so a combined portfolio is just its members' lots side by side. */
 export async function getHoldings(portfolio: PortfolioId): Promise<Holding[]> {
+  if (isCombinedPortfolio(portfolio)) {
+    const members = portfolioMembers(portfolio) as ('ryo' | 'joey')[];
+    const lots = (await Promise.all(
+      members.map(async (owner) => (await getHoldings(owner)).map((h) => ({ ...h, owner }))),
+    )).flat();
+    return lots.sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime());
+  }
   const data = await redis.hgetall(holdingsKey(portfolio));
   if (!data) return [];
   return (Object.values(data) as Holding[])
