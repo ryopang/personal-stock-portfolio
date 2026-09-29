@@ -10,6 +10,7 @@ export interface Holding {
   costBasis: number;    // Per share/unit average cost
   purchaseDate: string; // ISO date string (YYYY-MM-DD)
   addedAt: string;      // ISO timestamp
+  owner?: 'ryo' | 'joey'; // Set only when read through the combined r+J portfolio; never stored
 }
 
 export interface Quote {

@@ -5,7 +5,7 @@ import { toYahooSymbol } from '@/lib/crypto-symbols';
 import type { Holding, AssetType } from '@/lib/types';
 import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_HOLDINGS } from '@/lib/demo-data';
-import { parsePortfolioParam } from '@/lib/portfolios';
+import { parsePortfolioParam, isCombinedPortfolio, COMBINED_READ_ONLY_ERROR } from '@/lib/portfolios';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
   }
   const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
   if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
+  if (isCombinedPortfolio(portfolio)) return NextResponse.json({ error: COMBINED_READ_ONLY_ERROR }, { status: 403 });
   try {
     const body = await req.json();
     const { symbol, type, quantity, costBasis, purchaseDate } = body as {
@@ -87,6 +88,7 @@ export async function DELETE(req: NextRequest) {
   }
   const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
   if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
+  if (isCombinedPortfolio(portfolio)) return NextResponse.json({ error: COMBINED_READ_ONLY_ERROR }, { status: 403 });
   try {
     await clearHoldings(portfolio);
     return NextResponse.json({ success: true });

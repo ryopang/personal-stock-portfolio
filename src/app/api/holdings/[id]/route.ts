@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getHolding, upsertHolding, deleteHolding } from '@/lib/holdings-service';
 import type { AssetType } from '@/lib/types';
 import { DEMO_MODE } from '@/lib/demo-mode';
-import { parsePortfolioParam } from '@/lib/portfolios';
+import { parsePortfolioParam, isCombinedPortfolio, COMBINED_READ_ONLY_ERROR } from '@/lib/portfolios';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +15,7 @@ export async function PUT(
   }
   const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
   if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
+  if (isCombinedPortfolio(portfolio)) return NextResponse.json({ error: COMBINED_READ_ONLY_ERROR }, { status: 403 });
   try {
     const { id } = await params;
     const existing = await getHolding(portfolio, id);
@@ -64,6 +65,7 @@ export async function DELETE(
   }
   const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
   if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
+  if (isCombinedPortfolio(portfolio)) return NextResponse.json({ error: COMBINED_READ_ONLY_ERROR }, { status: 403 });
   try {
     const { id } = await params;
     await deleteHolding(portfolio, id);

@@ -5,7 +5,7 @@ import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_HOLDINGS } from '@/lib/demo-data';
 import yahooFinance from '@/lib/yahoo';
 import { toYahooSymbol } from '@/lib/crypto-symbols';
-import { DEFAULT_PORTFOLIO, parsePortfolioParam, portfolioKey } from '@/lib/portfolios';
+import { DEFAULT_PORTFOLIO, parsePortfolioParam, portfolioKey, portfolioMembers, isCombinedPortfolio, type PortfolioId, COMBINED_READ_ONLY_ERROR } from '@/lib/portfolios';
 import { getHoldings } from '@/lib/holdings-service';
 import { computeBackfilledSnapshots } from '@/lib/history-backfill';
 
@@ -107,6 +107,66 @@ async function computeDemoSnapshots(days: number): Promise<DailySnapshot[]> {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Stored + backfilled history for one real (non-combined) portfolio, oldest first. */
+async function loadSnapshots(portfolio: PortfolioId, days: number): Promise<DailySnapshot[]> {
+  const raw = await redis.hgetall(portfolioKey(portfolio, 'snapshots')) as Record<string, DailySnapshot> | null;
+  const recorded = Object.values(raw ?? {});
+
+  // Recorded snapshots (quote refreshes, plus Ryo's imported CSV) only cover part of a
+  // portfolio's life, so fill the rest from purchase dates and Yahoo prices, back to the
+  // first purchase. Recorded snapshots always win. Ryo's imported range is kept exactly
+  // as imported, so for him the backfill only extends earlier than his first snapshot.
+  let snapshots = recorded;
+  try {
+    const backfilled = await computeBackfilledSnapshots(portfolio, await getHoldings(portfolio));
+    const firstRecorded = recorded.reduce((min, s) => (min === '' || s.date < min ? s.date : min), '');
+    // Server dates are UTC while recorded ones use the viewer's day, so never let the
+    // backfill run ahead of the latest recorded snapshot.
+    const lastRecorded = recorded.reduce((max, s) => (s.date > max ? s.date : max), '');
+    const extra = backfilled.filter((s) =>
+      (portfolio !== DEFAULT_PORTFOLIO || !firstRecorded || s.date < firstRecorded) &&
+      (!lastRecorded || s.date <= lastRecorded),
+    );
+    const byDate = new Map(extra.map((s) => [s.date, s]));
+    for (const s of recorded) byDate.set(s.date, s);
+    snapshots = [...byDate.values()];
+  } catch (err) {
+    console.error('[GET /api/portfolio/snapshots] backfill failed', err);
+  }
+
+  snapshots = snapshots.sort((a, b) => a.date.localeCompare(b.date)).slice(-days);
+
+  return snapshots;
+}
+
+/**
+ * Adds several people's histories day by day. A member with no snapshot on a date carries its
+ * last known values forward (weekends, gaps) and contributes nothing before its first one.
+ */
+function sumSnapshots(histories: DailySnapshot[][]): DailySnapshot[] {
+  const dates = [...new Set(histories.flatMap((h) => h.map((s) => s.date)))].sort();
+  const cursors = histories.map(() => 0);
+  const latest: (DailySnapshot | null)[] = histories.map(() => null);
+
+  return dates.map((date) => {
+    const total: DailySnapshot = { date, timestamp: 0, totalValue: 0, totalCost: 0, totalGain: 0, byIndustry: {} };
+    histories.forEach((h, i) => {
+      while (cursors[i] < h.length && h[cursors[i]].date <= date) latest[i] = h[cursors[i]++];
+      const s = latest[i];
+      if (!s) return;
+      total.timestamp = Math.max(total.timestamp, s.timestamp);
+      total.totalValue += s.totalValue;
+      total.totalCost += s.totalCost;
+      total.totalGain += s.totalGain;
+      for (const [ind, v] of Object.entries(s.byIndustry ?? {})) {
+        const prev = total.byIndustry[ind] ?? { value: 0, totalGain: 0 };
+        total.byIndustry[ind] = { value: prev.value + v.value, totalGain: prev.totalGain + v.totalGain };
+      }
+    });
+    return total;
+  });
+}
+
 export async function GET(req: NextRequest) {
   const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
   if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
@@ -123,32 +183,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const raw = await redis.hgetall(portfolioKey(portfolio, 'snapshots')) as Record<string, DailySnapshot> | null;
-    const recorded = Object.values(raw ?? {});
-
-    // Recorded snapshots (quote refreshes, plus Ryo's imported CSV) only cover part of a
-    // portfolio's life, so fill the rest from purchase dates and Yahoo prices, back to the
-    // first purchase. Recorded snapshots always win. Ryo's imported range is kept exactly
-    // as imported, so for him the backfill only extends earlier than his first snapshot.
-    let snapshots = recorded;
-    try {
-      const backfilled = await computeBackfilledSnapshots(portfolio, await getHoldings(portfolio));
-      const firstRecorded = recorded.reduce((min, s) => (min === '' || s.date < min ? s.date : min), '');
-      // Server dates are UTC while recorded ones use the viewer's day, so never let the
-      // backfill run ahead of the latest recorded snapshot.
-      const lastRecorded = recorded.reduce((max, s) => (s.date > max ? s.date : max), '');
-      const extra = backfilled.filter((s) =>
-        (portfolio !== DEFAULT_PORTFOLIO || !firstRecorded || s.date < firstRecorded) &&
-        (!lastRecorded || s.date <= lastRecorded),
-      );
-      const byDate = new Map(extra.map((s) => [s.date, s]));
-      for (const s of recorded) byDate.set(s.date, s);
-      snapshots = [...byDate.values()];
-    } catch (err) {
-      console.error('[GET /api/portfolio/snapshots] backfill failed', err);
-    }
-
-    snapshots = snapshots.sort((a, b) => a.date.localeCompare(b.date)).slice(-days);
+    // Combined portfolios have no snapshots of their own: sum the members' histories.
+    const members = portfolioMembers(portfolio);
+    const histories = await Promise.all(members.map((m) => loadSnapshots(m, MAX_DAYS)));
+    const snapshots = (members.length > 1 ? sumSnapshots(histories) : histories[0]).slice(-days);
 
     return NextResponse.json({ snapshots });
   } catch (err) {
@@ -166,6 +204,7 @@ export async function POST(req: NextRequest) {
 
   const portfolio = parsePortfolioParam(req.nextUrl.searchParams);
   if (!portfolio) return NextResponse.json({ error: 'Unknown portfolio' }, { status: 400 });
+  if (isCombinedPortfolio(portfolio)) return NextResponse.json({ error: COMBINED_READ_ONLY_ERROR }, { status: 403 });
   const hashKey = portfolioKey(portfolio, 'snapshots');
   try {
     const snapshot = await req.json() as DailySnapshot;

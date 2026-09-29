@@ -49,10 +49,11 @@ A personal Next.js investment portfolio tracker. Stocks, ETFs, and crypto in one
 - Yahoo Finance fetch: `BTC-USD`, `ETH-USD`, etc.
 - Use `toYahooSymbol()` / `fromYahooSymbol()` from `src/lib/crypto-symbols.ts` to convert.
 
-### Multiple portfolios (Ryo / Joey / Shela)
-- Every portfolio-scoped API route reads `?portfolio=ryo|joey|shela` via `parsePortfolioParam()` (`src/lib/portfolios.ts`); missing → `ryo`, unknown → 400. `/api/chat` takes `portfolio` in the body.
+### Multiple portfolios (Ryo / Joey / Shela, plus combined r+J)
+- Every portfolio-scoped API route reads `?portfolio=ryo|joey|shela|rj` via `parsePortfolioParam()` (`src/lib/portfolios.ts`); missing → `ryo`, unknown → 400. `/api/chat` takes `portfolio` in the body.
 - Redis keys come from `portfolioKey(id, dataset)`. Ryo's keys are un-prefixed (`portfolio:holdings`); others are `portfolio:<id>:holdings` etc. Never hardcode these keys. Macro context is shared.
 - Client code reads `activePortfolio` from `portfolioStore` and builds URLs with `withPortfolio()`. Components with per-person state are `key={activePortfolio}`'d in `Dashboard.tsx`.
+- `rj` is a virtual, **read-only** portfolio (Ryo + Joey): `isCombinedPortfolio()` / `portfolioMembers()` in `portfolios.ts`. It has no Redis keys of its own except its cached analysis; every write route must reject it (403) and the UI passes no `onEdit`/`onDelete`. Lots carry an in-memory `owner` there.
 - The password gate must only ever show Ryo's data.
 
 ### Next.js page caching

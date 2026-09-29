@@ -2,7 +2,7 @@
 
 import { useMemo, useEffect, useRef } from 'react';
 import { usePortfolioStore } from '@/store/portfolioStore';
-import { withPortfolio } from '@/lib/portfolios';
+import { isCombinedPortfolio, withPortfolio } from '@/lib/portfolios';
 import { useQuotes } from './useQuotes';
 import { toYahooSymbol } from '@/lib/crypto-symbols';
 import { computeHoldingMetrics, computePortfolioTotals } from '@/lib/calculations';
@@ -114,6 +114,8 @@ export function usePortfolio(): UsePortfolioReturn {
     // Read at fire time: holdings and the active id switch together in the store, so
     // a snapshot is always filed under the person whose holdings produced it.
     const portfolio = usePortfolioStore.getState().activePortfolio;
+    // A combined portfolio's history is derived from its members' snapshots, never stored.
+    if (isCombinedPortfolio(portfolio)) return;
 
     fetch(withPortfolio('/api/portfolio/snapshots', portfolio), {
       method: 'POST',
