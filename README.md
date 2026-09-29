@@ -19,9 +19,9 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 ## Features
 
 ### Multiple Portfolios
-- **Ryo / Joey / Shela switcher** — a single icon dropdown in the header, left of Admin (always visible, even when a portfolio is empty), shows the active person's initial and switches Holdings, Charts and Analysis between three separate portfolios. It always starts on Ryo and the tab you're on stays put when you switch
+- **Profile switcher** — a single icon dropdown in the header, left of Admin (always visible, even when a portfolio is empty), shows the active profile's initial and switches Holdings, Charts and Analysis between three separate portfolios. It always starts on one profile and the tab you're on stays put when you switch
 - **Identical functionality for everyone** — add / edit / delete / clear, CSV and historical imports, bulk purchase-date edits, trend snapshots, AI analysis and the chatbot all operate on the selected person's portfolio
-- **AI output names the owner** — analysis reports open with "Joey's Portfolio Analysis" and refer to the owner by name; the chatbot does the same. The investment-profile prompt is shared by all three
+- **AI output names the owner** — analysis reports open with "xxx's Portfolio Analysis" and refer to the owner by name; the chatbot does the same. The investment-profile prompt is shared by all three
 - **Fully isolated data** — each person has their own holdings, daily snapshots and cached AI analysis in Redis; only the macro-context commentary is shared
 - **Lock screen stays Ryo-only** — the password gate's daily gain/loss badge only ever shows Ryo's portfolio
 
@@ -61,7 +61,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 - Plots historical **portfolio value**, **total gain/loss**, or **total return %** — switchable via dropdown
 - Time range pills: **1W, 1M, 3M, 6M, YTD**, per-calendar-year buttons counting down from the latest year (e.g. `26'`, `25'`, `24'`), and **MAX**
 - **If not invested** toggle (Portfolio Trend view) — dashed grey line showing the period's starting value held as cash plus any money added since (step-ups in cost basis); the summary shows the gap vs cash and the tooltip shows the difference on any date
-- **History from the first purchase** — days not covered by stored snapshots are rebuilt from each lot's purchase date and Yahoo closing prices, so every portfolio's chart runs from its first purchase. Ryo's imported history is kept as-is and only extended earlier
+- **History from the first purchase** — days not covered by stored snapshots are rebuilt from each lot's purchase date and Yahoo closing prices, so every portfolio's chart runs from its first purchase. imported history is kept as-is and only extended earlier
 - X-axis labels use calendar midpoints for clean, evenly-spaced date ticks regardless of partial periods
 - Hover to see a crosshair + tooltip with the exact value for that date
 - Period summary line above the chart shows start-to-end change for the selected range
@@ -136,8 +136,8 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ### September 2026 (latest) — v2.1.0
 **Trend chart and switcher polish.**
-- **Switcher is now an icon dropdown** beside Admin, showing the active initial (`r` / `J` / `S`) instead of a segmented control under the date.
-- **Full history for every portfolio** — the snapshots API rebuilds days before/around stored snapshots from purchase dates and Yahoo prices (`src/lib/history-backfill.ts`, cached for an hour). Joey and Shela previously had only the days since their first refresh, which also left the x-axis without labels (the chart labels calendar midpoints, and a few September days contain none). Ryo's imported CSV range is untouched; his chart now extends back to his first purchase (2011). `MAX_DAYS` raised to 7300. Rebuilt history uses *current* holdings, so sold positions aren't reflected and there can be a step where it meets an imported range.
+- **Switcher is now an icon dropdown** beside Admin, showing the active profile's initial instead of a segmented control under the date.
+- **Full history for every portfolio** — the snapshots API rebuilds days not covered by stored snapshots from purchase dates and Yahoo prices (`src/lib/history-backfill.ts`, cached for an hour). Profiles with only a few days of recorded snapshots previously showed a short chart with no x-axis labels (the chart labels calendar midpoints, and a few days can contain none). The first profile's imported CSV range is untouched, and its chart now extends back to its first purchase. `MAX_DAYS` raised to 7300. Rebuilt history uses *current* holdings, so sold positions aren't reflected and there can be a step where it meets an imported range.
 - **"If not invested" line** on the Portfolio Trend chart (see above).
 - **Year pills count down** from the latest year next to YTD, with MAX on the right.
 
