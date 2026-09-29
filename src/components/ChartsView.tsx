@@ -156,6 +156,7 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
   const [isPrivate, setIsPrivate] = useState(false);
   const [showBenchmark, setShowBenchmark] = useState(false);
   const [benchmarkSymbol, setBenchmarkSymbol] = useState<BenchmarkSymbol>('^GSPC');
+  const [showCashLine, setShowCashLine] = useState(false);
 
   useEffect(() => {
     const check = () => setIsPrivate(document.documentElement.classList.contains('privacy-mode'));
@@ -167,7 +168,7 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
 
   const activePortfolio = usePortfolioStore((s) => s.activePortfolio);
   const { data } = useSWR<{ snapshots: DailySnapshot[] }>(
-    withPortfolio('/api/portfolio/snapshots?days=3650', activePortfolio),
+    withPortfolio('/api/portfolio/snapshots?days=7300', activePortfolio),
     snapshotFetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: false, refreshInterval: 0 },
   );
@@ -262,6 +263,14 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
     ? filtered.map(s => s.totalGain)
     : returnVals;
 
+  // "If not invested": the period's starting value held as cash, plus any money added along
+  // the way (step-ups in cost basis). Only meaningful against absolute dollar value.
+  const cashAvailable = mode === 'value' && !showBenchmark && !hasSelectedIndustry;
+  const showCash = showCashLine && cashAvailable && filtered.length > 1;
+  const cashVals: number[] | null = showCash
+    ? filtered.map(s => filtered[0].totalValue + (s.totalCost - filtered[0].totalCost))
+    : null;
+
   const definedMain = mainVals.filter((v): v is number => v !== null);
   if (definedMain.length < 2) {
     return (
@@ -286,7 +295,7 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
   const benchmarkDefinedVals = benchmarkNormVals?.filter((v): v is number => v !== null) ?? [];
   const allVals = hasSelectedIndustry && industryVals.length > 0
     ? industryVals
-    : [...definedMain, ...industryVals, ...benchmarkDefinedVals];
+    : [...definedMain, ...industryVals, ...benchmarkDefinedVals, ...(cashVals ?? [])];
   const rawMin = Math.min(...allVals);
   const rawMax = Math.max(...allVals);
   const pad = (rawMax - rawMin) * 0.08 || Math.abs(rawMax) * 0.05 || 1;
@@ -346,6 +355,7 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
 
   const mainPath = makePath(mainVals);
   const benchmarkPath = benchmarkNormVals ? makePath(benchmarkNormVals) : '';
+  const cashPath = cashVals ? makePath(cashVals) : '';
 
   // Industry-combined G/L series for period summary when industries are selected
   const industryGainSeries = hasSelectedIndustry && filtered.length > 0
@@ -507,9 +517,26 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
               ))}
             </select>
           )}
+          <button
+            onClick={() => cashAvailable && setShowCashLine(v => !v)}
+            title={cashAvailable ? 'Compare with the same money held as cash' : 'Available in Portfolio Trend view'}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all shrink-0"
+            style={{
+              backgroundColor: showCash ? '#8E8E93' : 'var(--color-surface-secondary)',
+              color: showCash ? '#fff' : 'var(--color-secondary)',
+              border: '1px solid var(--color-border)',
+              opacity: cashAvailable ? 1 : 0.45,
+              cursor: cashAvailable ? 'pointer' : 'default',
+            }}
+          >
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12h4m3 0h4m3 0h4" />
+            </svg>
+            If not invested
+          </button>
         </div>
         <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {(['1w', '1m', '3m', '6m', 'ytd', ...years, 'max'] as string[]).map(r => (
+          {(['1w', '1m', '3m', '6m', 'ytd', ...[...years].reverse(), 'max'] as string[]).map(r => (
             <button
               key={r}
               onClick={() => { setTimeRange(r); setHoverIdx(null); }}
@@ -571,6 +598,11 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
                 : fmtPeriodChange(periodChange, periodChangePct)}
             </span>
             <span className="text-xs text-secondary">{rangeLabel(timeRange)}</span>
+            {cashVals && (
+              <span className="text-xs tabular-nums" style={{ color: 'var(--color-secondary)' }}>
+                · vs cash {fmtMoney(lastMain - cashVals[cashVals.length - 1])}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -634,6 +666,12 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
             strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
         )}
 
+        {/* If-not-invested (cash) line */}
+        {cashPath && (
+          <path d={cashPath} fill="none" stroke="#8E8E93"
+            strokeWidth={2} strokeDasharray="6 3" strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />
+        )}
+
         {/* Benchmark overlay line */}
         {showBenchmark && benchmarkPath && !hasSelectedIndustry && (
           <path d={benchmarkPath} fill="none" stroke="#FF9500"
@@ -689,6 +727,14 @@ function TrendChart({ industryColors, enabled }: TrendChartProps) {
                 ? '#AF52DE'
                 : hovMain >= 0 ? 'var(--color-gain)' : 'var(--color-loss)',
             }] : []),
+            ...(cashVals ? [
+              { label: 'If not invested', value: fmtFull(cashVals[hoverIdx]), color: '#8E8E93' },
+              {
+                label: 'Difference',
+                value: fmtMoneyFull(hovSnap.totalValue - cashVals[hoverIdx]),
+                color: hovSnap.totalValue - cashVals[hoverIdx] >= 0 ? 'var(--color-gain)' : 'var(--color-loss)',
+              },
+            ] : []),
             ...enabledArr.map(ind => ({
               label: `${ind} G/L`,
               value: fmtMoneyFull(hovSnap.byIndustry[ind]?.totalGain ?? 0),

@@ -64,12 +64,14 @@ export default function Dashboard({ initialHoldings }: Props) {
   const [alertFilter, setAlertFilter] = useState(false);
   const [lang, setLang] = useState<'en' | 'zh-TW'>(DEMO_MODE ? 'en' : 'zh-TW');
   const [adminOpen, setAdminOpen] = useState(false);
+  const [portfolioMenuOpen, setPortfolioMenuOpen] = useState(false);
   const [gateEnabled, setGateEnabled] = useState(() =>
     typeof window !== 'undefined'
       ? localStorage.getItem('portfolio_gate_disabled') !== 'true'
       : true
   );
   const adminRef = useRef<HTMLDivElement>(null);
+  const portfolioMenuRef = useRef<HTMLDivElement>(null);
   const stickyBandRef = useRef<HTMLDivElement>(null);
 
   useModalBehavior(() => { setClearModalOpen(false); setClearConfirmText(''); }, clearModalOpen);
@@ -84,6 +86,17 @@ export default function Dashboard({ initialHoldings }: Props) {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [adminOpen]);
+
+  useEffect(() => {
+    if (!portfolioMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (portfolioMenuRef.current && !portfolioMenuRef.current.contains(e.target as Node)) {
+        setPortfolioMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [portfolioMenuOpen]);
 
   useEffect(() => {
     const el = stickyBandRef.current;
@@ -356,6 +369,51 @@ export default function Dashboard({ initialHoldings }: Props) {
                 </svg>
               )}
             </button>
+            {/* Portfolio switcher — in the header (not the tabs) so it stays reachable when a portfolio is empty.
+                Hidden in demo mode: the demo has a single read-only portfolio. */}
+            {!DEMO_MODE && (
+              <div ref={portfolioMenuRef} className="relative">
+                <button
+                  onClick={() => setPortfolioMenuOpen((v) => !v)}
+                  className="btn-secondary rounded-lg"
+                  style={{ padding: '0.625rem', touchAction: 'manipulation' }}
+                  aria-label={`Portfolio: ${activePortfolio === 'ryo' ? 'ryo' : PORTFOLIO_LABELS[activePortfolio]}`}
+                  aria-haspopup="menu"
+                  aria-expanded={portfolioMenuOpen}
+                  title={`Portfolio: ${activePortfolio === 'ryo' ? 'ryo' : PORTFOLIO_LABELS[activePortfolio]}`}
+                >
+                  {/* Initial of the active portfolio: r / J / S */}
+                  <span className="w-4 h-4 flex items-center justify-center text-sm font-semibold leading-none">
+                    {activePortfolio === 'ryo' ? 'r' : PORTFOLIO_LABELS[activePortfolio][0]}
+                  </span>
+                </button>
+                {portfolioMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-1.5 w-40 rounded-xl shadow-lg py-1 z-50"
+                    style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                  >
+                    {PORTFOLIO_IDS.map((id) => (
+                      <button
+                        key={id}
+                        role="menuitemradio"
+                        aria-checked={activePortfolio === id}
+                        onClick={() => { setPortfolioMenuOpen(false); switchPortfolio(id); }}
+                        className="w-full flex items-center justify-between px-4 py-2 text-sm text-left text-primary hover:bg-surface-secondary transition-colors"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <span>{id === 'ryo' ? 'ryo' : PORTFOLIO_LABELS[id]}</span>
+                        {activePortfolio === id && (
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {/* Admin dropdown */}
             <div ref={adminRef} className="relative">
               <button
@@ -482,30 +540,6 @@ export default function Dashboard({ initialHoldings }: Props) {
             </div>
           </div>
         </div>
-        {/* Portfolio switcher — lives in the header (not the tabs) so it stays reachable when a portfolio is empty.
-            Hidden in demo mode: the demo has a single read-only portfolio. */}
-        {!DEMO_MODE && (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-2">
-          <div role="group" aria-label="Portfolio" className="inline-flex rounded-lg p-0.5" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
-            {PORTFOLIO_IDS.map((id) => (
-              <button
-                key={id}
-                onClick={() => switchPortfolio(id)}
-                aria-pressed={activePortfolio === id}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  activePortfolio === id ? 'text-primary shadow-sm' : 'text-secondary'
-                }`}
-                style={{
-                  touchAction: 'manipulation',
-                  backgroundColor: activePortfolio === id ? 'var(--color-surface)' : 'transparent',
-                }}
-              >
-                {PORTFOLIO_LABELS[id]}
-              </button>
-            ))}
-          </div>
-        </div>
-        )}
       </header>
 
       {/* View tabs + portfolio summary inside the sticky band */}

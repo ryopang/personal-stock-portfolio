@@ -5,11 +5,13 @@ import { DEMO_MODE } from '@/lib/demo-mode';
 import { DEMO_HOLDINGS } from '@/lib/demo-data';
 import yahooFinance from '@/lib/yahoo';
 import { toYahooSymbol } from '@/lib/crypto-symbols';
-import { parsePortfolioParam, portfolioKey } from '@/lib/portfolios';
+import { DEFAULT_PORTFOLIO, parsePortfolioParam, portfolioKey } from '@/lib/portfolios';
+import { getHoldings } from '@/lib/holdings-service';
+import { computeBackfilledSnapshots } from '@/lib/history-backfill';
 
 export const dynamic = 'force-dynamic';
 
-const MAX_DAYS = 3650;
+const MAX_DAYS = 7300; // ~20 years — Ryo's first purchase is 2011
 
 // ─── Demo snapshot computation ────────────────────────────────────────────────
 // In demo mode, snapshots are derived from real Yahoo Finance historical prices
@@ -122,11 +124,31 @@ export async function GET(req: NextRequest) {
 
   try {
     const raw = await redis.hgetall(portfolioKey(portfolio, 'snapshots')) as Record<string, DailySnapshot> | null;
-    if (!raw) return NextResponse.json({ snapshots: [] });
+    const recorded = Object.values(raw ?? {});
 
-    const snapshots = Object.values(raw)
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(-days);
+    // Recorded snapshots (quote refreshes, plus Ryo's imported CSV) only cover part of a
+    // portfolio's life, so fill the rest from purchase dates and Yahoo prices, back to the
+    // first purchase. Recorded snapshots always win. Ryo's imported range is kept exactly
+    // as imported, so for him the backfill only extends earlier than his first snapshot.
+    let snapshots = recorded;
+    try {
+      const backfilled = await computeBackfilledSnapshots(portfolio, await getHoldings(portfolio));
+      const firstRecorded = recorded.reduce((min, s) => (min === '' || s.date < min ? s.date : min), '');
+      // Server dates are UTC while recorded ones use the viewer's day, so never let the
+      // backfill run ahead of the latest recorded snapshot.
+      const lastRecorded = recorded.reduce((max, s) => (s.date > max ? s.date : max), '');
+      const extra = backfilled.filter((s) =>
+        (portfolio !== DEFAULT_PORTFOLIO || !firstRecorded || s.date < firstRecorded) &&
+        (!lastRecorded || s.date <= lastRecorded),
+      );
+      const byDate = new Map(extra.map((s) => [s.date, s]));
+      for (const s of recorded) byDate.set(s.date, s);
+      snapshots = [...byDate.values()];
+    } catch (err) {
+      console.error('[GET /api/portfolio/snapshots] backfill failed', err);
+    }
+
+    snapshots = snapshots.sort((a, b) => a.date.localeCompare(b.date)).slice(-days);
 
     return NextResponse.json({ snapshots });
   } catch (err) {
