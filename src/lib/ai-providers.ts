@@ -2,7 +2,7 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText, type LanguageModel } from 'ai';
 
-export const PROVIDER_KEYS = ['gemini', 'claude-sonnet', 'claude-opus'] as const;
+export const PROVIDER_KEYS = ['gemini', 'claude-sonnet', 'claude-sonnet-5-5', 'claude-opus'] as const;
 export type ProviderKey = (typeof PROVIDER_KEYS)[number];
 
 type ProviderOptions = Parameters<typeof streamText>[0]['providerOptions'];
@@ -42,6 +42,15 @@ const PROVIDERS: Record<ProviderKey, ProviderConfig> = {
     // ANTHROPIC_BASE_URL env var (e.g. injected by Claude Code's own shell)
     // overrides it and drops the required /v1 path, 404-ing every request.
     createModel: (apiKey) => createAnthropic({ apiKey, baseURL: 'https://api.anthropic.com/v1' })('claude-sonnet-5'),
+    providerOptions: { anthropic: { thinking: { type: 'adaptive' }, effort: 'low' } },
+    maxOutputTokens: 6000,
+    wordLimit: 1200,
+  },
+  'claude-sonnet-5-5': {
+    label: 'Claude Sonnet 5.5',
+    envKey: 'ANTHROPIC_API_KEY',
+    keyHint: 'Get an API key at console.anthropic.com',
+    createModel: (apiKey) => createAnthropic({ apiKey, baseURL: 'https://api.anthropic.com/v1' })('claude-sonnet-5-5'),
     providerOptions: { anthropic: { thinking: { type: 'adaptive' }, effort: 'low' } },
     maxOutputTokens: 6000,
     wordLimit: 1200,

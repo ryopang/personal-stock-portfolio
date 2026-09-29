@@ -11,11 +11,12 @@ interface Props {
 }
 
 type Status = 'idle' | 'streaming' | 'done' | 'error';
-type Provider = 'gemini' | 'claude-sonnet' | 'claude-opus';
+type Provider = 'gemini' | 'claude-sonnet' | 'claude-sonnet-5-5' | 'claude-opus';
 
 const PROVIDERS: { id: Provider; label: string }[] = [
   { id: 'gemini',        label: 'Gemini 3.8 Flash' },
   { id: 'claude-sonnet', label: 'Claude Sonnet 5'  },
+  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
   { id: 'claude-opus',   label: 'Claude Opus 5'    },
 ];
 

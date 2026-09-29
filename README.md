@@ -92,7 +92,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
   - Watch items that carry forward between runs
   - Benchmark comparison against VTI/VOO (YTD and 1-year)
   - **Tax implication analysis** — each lot's purchase date and ST/LT classification (short-term ≤1 year, long-term >1 year) is included in the prompt; the AI applies NJ + federal tax rules to every sell recommendation
-- **Provider selector** — choose from **Gemini 3.8 Flash**, **Claude Sonnet 5**, or **Claude Opus 5** per session
+- **Provider selector** — choose from **Gemini 3.8 Flash**, **Claude Sonnet 5**, **Claude Sonnet 5.5**, or **Claude Opus 5** per session
 - Analysis is **persisted to Redis** and survives page reloads; a "Regenerate" button refreshes it on demand
 - **AI rate limiting** — 20 requests per hour per IP to protect against token abuse
 
@@ -135,7 +135,10 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ## Changelog
 
-### September 2026 (latest) — v2.2.0
+### September 2026 (latest) — v2.3.0
+- **Claude Sonnet 5.5 added to AI Analysis** — new `claude-sonnet-5-5` provider (model `claude-sonnet-5-5`) in the analysis provider dropdown, with the same adaptive-thinking / low-effort / 1200-word settings as Sonnet 5. Uses the existing `ANTHROPIC_API_KEY`. Not yet added to the chatbot dropdown.
+
+### September 2026 — v2.2.0
 **Combined r+J portfolio.**
 - **New `rj` portfolio** in the switcher (between Joey and Shela, with a divider above Shela). `src/lib/portfolios.ts` now has `isCombinedPortfolio()` / `portfolioMembers()`; `getHoldings('rj')` returns Ryo's and Joey's lots together, each tagged with an in-memory `owner` (never stored). `/api/portfolio/snapshots` sums the members' histories day by day (carrying a member's last value forward across gaps); AI prompts use `PORTFOLIO_OWNER_NAMES` ("Ryo & Joey").
 - **Read-only by design** — holdings POST/PUT/DELETE, snapshot POST and import return 403 for `rj`, the UI hides/disables every write control, and the combined view never writes snapshots.
@@ -237,7 +240,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 | Stock/crypto data | yahoo-finance2 |
 | Persistence | Upstash Redis |
 | AI (streaming) | Vercel AI SDK (`ai` + `@ai-sdk/*`) |
-| AI providers | Gemini 3.8 Flash · Claude Sonnet 5 · Claude Opus 5 |
+| AI providers | Gemini 3.8 Flash · Claude Sonnet 5 · Claude Sonnet 5.5 · Claude Opus 5 |
 | Rate limiting | @upstash/ratelimit |
 | Deployment | Vercel |
 
@@ -355,7 +358,7 @@ UPSTASH_REDIS_REST_TOKEN=your_upstash_token
 
 # AI providers — at least one required; set all to enable provider switching in the UI
 GEMINI_API_KEY=your_google_ai_studio_key    # Gemini 3.8 Flash
-ANTHROPIC_API_KEY=your_anthropic_key        # Claude Sonnet 5 + Opus 5
+ANTHROPIC_API_KEY=your_anthropic_key        # Claude Sonnet 5 / 5.5 + Opus 5
 
 # Optional: client-side password gate (baked into the bundle — not a real secret)
 NEXT_PUBLIC_DASHBOARD_PASSWORD=your_password
