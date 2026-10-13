@@ -6,6 +6,7 @@ AI layer, engineering hygiene, and structure, not the framework.
 
 **Decisions made (2026-06-10):**
 - Security: keep the client-side password gate as-is (accepted risk for a personal app).
+  **Superseded Oct 2026:** replaced by server-side session auth (`src/proxy.ts`, `/api/auth`).
   Add rate limiting on AI endpoints to cap token burn.
 - AI layer: migrate to Vercel AI SDK.
 - Testing: Vitest + GitHub Actions CI.
@@ -96,7 +97,7 @@ the server should not trust or need that payload.
 
 ## Explicitly out of scope (decided against)
 
-- Server-side auth / middleware gate — accepted risk; revisit if the app is ever shared.
+- ~~Server-side auth / middleware gate~~ — done Oct 2026 (`src/proxy.ts`).
 - Server Actions migration — current API routes + SWR optimistic updates work fine.
 - Charting library — charts stay hand-rolled SVG (CLAUDE.md rule).
 - State-layer changes — Zustand + SWR stays.

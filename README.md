@@ -24,7 +24,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 - **AI output names the owner** — analysis reports open with "xxx's Portfolio Analysis" and refer to the owner by name; the chatbot does the same. The investment-profile prompt is shared by all three
 - **Fully isolated data** — each person has their own holdings, daily snapshots and cached AI analysis in Redis; only the macro-context commentary is shared
 - **r+J combined view** — a fourth switcher entry (`r+J`) shows Ryo's and Joey's holdings merged. It is **read-only**: edit/delete buttons are hidden, Add / Import / Edit dates / Clear all are disabled, and write routes return 403. Lots of the same symbol group together; expanding a multi-lot row tags each lot with a small **r** or **J** badge. In Charts, the industry table adds a per-person split (r / J) under Cost, Value, Daily and Total G/L for industries both of you hold; the trend line sums both histories. Analysis and the chatbot run on the combined holdings ("Ryo & Joey's Portfolio") and cache separately
-- **Lock screen stays Ryo-only** — the password gate's daily gain/loss badge only ever shows Ryo's portfolio
+- **One login for all profiles** — access is controlled by a single server-side password (see Security below); the login screen shows no portfolio data
 
 ### Holdings Management
 - Add holdings via **symbol autocomplete search** — type a ticker and pick from live Yahoo Finance suggestions
@@ -108,7 +108,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 
 ### Admin
 - **Macro context editor** — write free-form market commentary (e.g., current rate environment, sector outlook) that is stored in Redis and automatically injected into every AI analysis prompt; keeps AI context current without changing code
-- **Password gate toggle** — enable or disable the client-side password gate from the Admin menu without redeploying
+- **Lock** — ends your login session (clears the session cookie) and returns to the login screen
 - **Bulk edit purchase dates** — update purchase dates across multiple lots in a single modal
 - **Import** — unified entry that routes to CSV holdings import or historical snapshot import via a picker modal
 - **Clear all holdings** — destructive wipe protected by a typed confirmation
@@ -118,13 +118,13 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 - **Realistic sample portfolio** — 10 symbols (AAPL, MSFT, NVDA, AMZN, GOOGL, JPM, VTI, QQQ, BTC, ETH) across 18 tax lots with realistic cost bases, hardcoded at build time
 - **Real live data, no API keys** — quotes, 52-week ranges, and 90-day trend history are fetched live from Yahoo Finance same as production; no AI or Redis credentials are required to run the demo
 - **Static AI content** — the Analysis tab and Investment Advisor chatbot show pre-written example output instead of calling a real LLM, so the demo costs nothing in AI tokens and needs no `GEMINI_API_KEY`/`ANTHROPIC_API_KEY`
-- **Read-only by design** — Redis is swapped for a null stub and every mutation API route (add/edit/delete holdings, imports, admin settings) returns `403`; the password gate is skipped entirely and the Admin menu shows a "Demo mode — read only" banner with all write actions greyed out
+- **Read-only by design** — Redis is swapped for a null stub and every mutation API route (add/edit/delete holdings, imports, admin settings) returns `403`; login is skipped entirely and the Admin menu shows a "Demo mode — read only" banner with all write actions greyed out
 
 ### UX Details
 - **Dark mode by default** — new visitors start in dark mode; the toggle (sun/moon icon) persists the preference to `localStorage`
 - **Global privacy mode** — eye icon in the header blurs all monetary values site-wide (useful for screen sharing); separate from the summary card's per-field toggle
 - **Portfolio value toggle** — eye button on the summary card selectively hides sensitive figures (total value, invested, P&L amounts; today's daily change keeps the dollar amount but hides the percent); hidden by default on page load
-- **Password gate** — lightweight client-side access control; session persists via `sessionStorage` so you don't re-enter on reload. The lock screen shows a live daily gain/loss badge (green/red, `$K` format) so you can check performance at a glance without unlocking
+- **Server-side login** — a password checked on the server issues a signed, HttpOnly session cookie (7 days). Every `/api/*` route and the page itself require it; a logged-out visitor receives the login screen only, with no holdings in the HTML or API responses
 - **Toast notifications** — success and error feedback for add, edit, delete, and import operations
 - **Accessible modals** — Escape key closes any open modal; focus-visible rings on all interactive elements; ARIA labels on icon buttons and SVG indicators
 - **Sticky header** — portfolio summary, view tabs, and type/industry filter bar all remain visible while scrolling
@@ -134,6 +134,9 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 ---
 
 ## Changelog
+
+### October 2026 — security fix
+- **Server-side login replaces the client-side password gate.** Previously `/api/holdings` and the other API routes were readable by anyone with the URL, and the password shipped in the public JavaScript bundle. Now `src/proxy.ts` returns `401` for every `/api/*` request without a signed HttpOnly session cookie, `/api/auth` handles a rate-limited login, and the page renders only the login screen until the session verifies. `NEXT_PUBLIC_DASHBOARD_PASSWORD` is replaced by the server-only `DASHBOARD_PASSWORD`. The Admin "Disable password" toggle became "Lock", and the lock-screen daily-change badge was removed (it needed data before login).
 
 ### September 2026 (latest) — v2.3.0
 - **Claude Sonnet 5.5 added to AI Analysis** — new `claude-sonnet-5-5` provider (model `claude-sonnet-5-5`) in the analysis provider dropdown, with the same adaptive-thinking / low-effort / 1200-word settings as Sonnet 5. Uses the existing `ANTHROPIC_API_KEY`. Not yet added to the chatbot dropdown.
@@ -154,7 +157,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 - **Year pills count down** from the latest year next to YTD, with MAX on the right.
 
 ### September 2026 — v2.0.0
-**Multi-portfolio release.** One dashboard now tracks three people's portfolios — Ryo, Joey and Shela — with identical functionality for each.
+**Multi-portfolio release.** One dashboard now tracks three people's portfolios (a combined r+J view was added in v2.2.0) — Ryo, Joey and Shela — with identical functionality for each.
 
 - **Portfolio switcher** — a Ryo | Joey | Shela toggle in the header switches Holdings, Charts and Analysis. It lives in the always-visible header (not the view tabs, which hide for an empty portfolio) so an empty portfolio can never strand you. Always starts on Ryo; switching keeps you on the same tab, clears mover/alert filters, and resets the chatbot conversation. Rapid A→B→A switching can't show stale data (the store is emptied on switch and late responses are discarded); a failed load shows a retry card instead of a misleading empty state.
 - **Fully isolated per-person data** — holdings, daily snapshots (trend chart) and cached AI analysis each live under per-person Redis keys (`portfolio:joey:*`, `portfolio:shela:*`). Ryo's keys are unchanged, so **no data migration**. Macro context stays shared.
@@ -272,7 +275,7 @@ Macro context (`portfolio:macro-context`) is shared. Components that hold per-pe
 
 **Macro context is user-maintained data** — market commentary injected into AI prompts lives in Redis and is editable via Admin. It is never hardcoded in prompt text, so it doesn't go stale between deploys.
 
-**AI rate limiting as the hard backstop** — the password gate is client-side only (key is baked into the bundle), so `@upstash/ratelimit` on the AI routes is the real protection against token abuse. 20 requests/hour per IP is sufficient for personal use.
+**Server-side auth, with rate limiting as a second layer** — `src/proxy.ts` rejects every `/api/*` request (except `/api/auth`) without a valid HMAC-signed session cookie, and the page renders nothing portfolio-related until the cookie verifies. Login attempts are limited to 8 per 15 minutes per IP, and the AI routes keep their 20 requests/hour per-IP limit to cap token burn.
 
 **Tailwind v4 with CSS design tokens** — the entire design system (colors, spacing, dark/light themes) is defined in `globals.css` using `@theme inline`. There is no `tailwind.config.js`.
 
@@ -287,16 +290,19 @@ src/
 ├── app/
 │   ├── api/
 │   │   ├── analysis/      # AI analysis endpoint (streaming, rate-limited)
+│   │   ├── auth/          # Login (POST, rate-limited) / logout (DELETE) — the only unauthenticated API route
 │   │   ├── chat/          # Streaming Investment Advisor chatbot endpoint
 │   │   ├── history/       # Per-symbol price history
-│   │   ├── holdings/      # CRUD for portfolio holdings (?portfolio=ryo|joey|shela)
+│   │   ├── holdings/      # CRUD for portfolio holdings (?portfolio=ryo|joey|shela|rj)
 │   │   ├── macro-context/ # Admin read/write for market commentary
 │   │   ├── news/          # Market and portfolio news
 │   │   ├── portfolio/     # Snapshot read/write
 │   │   ├── quotes/        # Batch live price fetching
 │   │   └── search/        # Symbol search (Yahoo Finance)
-│   ├── page.tsx           # Server component — SSR initial holdings
-│   └── layout.tsx
+│   ├── page.tsx           # Server component — verifies session; login screen or SSR initial holdings
+│   ├── layout.tsx
+│   └── ...
+├── proxy.ts               # Rejects every /api/* request without a valid session cookie (401)
 ├── components/
 │   ├── Dashboard.tsx          # Top-level client shell
 │   ├── PortfolioSummary.tsx
@@ -315,12 +321,13 @@ src/
 │   ├── AddHoldingModal.tsx
 │   ├── CSVImportModal.tsx
 │   ├── HistoricalImportModal.tsx
-│   ├── PasswordGate.tsx
+│   ├── PasswordGate.tsx       # Login form (shown only when logged out)
 │   └── SymbolSearch.tsx       # Autocomplete ticker search
 ├── hooks/
 │   ├── usePortfolio.ts    # Composites holdings + live quotes → HoldingWithMetrics[]
 │   └── useQuotes.ts
 ├── lib/
+│   ├── auth.ts            # HMAC-signed session cookie create/verify (Web Crypto)
 │   ├── yahoo.ts           # Yahoo Finance singleton
 │   ├── redis.ts           # Upstash Redis singleton
 │   ├── holdings-service.ts
@@ -360,8 +367,11 @@ UPSTASH_REDIS_REST_TOKEN=your_upstash_token
 GEMINI_API_KEY=your_google_ai_studio_key    # Gemini 3.8 Flash
 ANTHROPIC_API_KEY=your_anthropic_key        # Claude Sonnet 5 / 5.5 + Opus 5
 
-# Optional: client-side password gate (baked into the bundle — not a real secret)
-NEXT_PUBLIC_DASHBOARD_PASSWORD=your_password
+# Login password, checked server-side. Required in production (requests are rejected without it);
+# in local dev, leave blank to disable the login. Never prefix it with NEXT_PUBLIC_.
+DASHBOARD_PASSWORD=your_password
+# Optional: separate key for signing session cookies (defaults to DASHBOARD_PASSWORD)
+AUTH_SECRET=
 ```
 
 Get keys at: [aistudio.google.com](https://aistudio.google.com) · [console.anthropic.com](https://console.anthropic.com)
