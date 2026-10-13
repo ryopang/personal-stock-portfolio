@@ -73,11 +73,6 @@ export default function Dashboard({ initialHoldings }: Props) {
   const [lang, setLang] = useState<'en' | 'zh-TW'>(DEMO_MODE ? 'en' : 'zh-TW');
   const [adminOpen, setAdminOpen] = useState(false);
   const [portfolioMenuOpen, setPortfolioMenuOpen] = useState(false);
-  const [gateEnabled, setGateEnabled] = useState(() =>
-    typeof window !== 'undefined'
-      ? localStorage.getItem('portfolio_gate_disabled') !== 'true'
-      : true
-  );
   const adminRef = useRef<HTMLDivElement>(null);
   const portfolioMenuRef = useRef<HTMLDivElement>(null);
   const stickyBandRef = useRef<HTMLDivElement>(null);
@@ -505,17 +500,12 @@ export default function Dashboard({ initialHoldings }: Props) {
                     </button>
                   )}
                   <div className="my-1 border-t" style={{ borderColor: 'var(--color-border)' }} />
-                  {/* Password toggle — always greyed out in demo */}
+                  {/* Lock — ends the server session; hidden in demo (no login there) */}
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (DEMO_MODE) return;
-                      const next = !gateEnabled;
-                      setGateEnabled(next);
-                      if (next) {
-                        localStorage.removeItem('portfolio_gate_disabled');
-                      } else {
-                        localStorage.setItem('portfolio_gate_disabled', 'true');
-                      }
+                      await fetch('/api/auth', { method: 'DELETE' });
+                      window.location.reload();
                     }}
                     disabled={DEMO_MODE}
                     className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${DEMO_MODE ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-secondary'}`}
@@ -523,12 +513,9 @@ export default function Dashboard({ initialHoldings }: Props) {
                     title={DEMO_MODE ? 'Not available in demo mode' : undefined}
                   >
                     <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      {gateEnabled
-                        ? <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                        : <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                      }
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                     </svg>
-                    {gateEnabled ? 'Disable password' : 'Enable password'}
+                    Lock
                   </button>
                   {/* Clear all — hidden in demo, visible (with condition) in prod */}
                   {!DEMO_MODE && !readOnly && holdings.length > 0 && (

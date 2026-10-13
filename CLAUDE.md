@@ -54,7 +54,7 @@ A personal Next.js investment portfolio tracker. Stocks, ETFs, and crypto in one
 - Redis keys come from `portfolioKey(id, dataset)`. Ryo's keys are un-prefixed (`portfolio:holdings`); others are `portfolio:<id>:holdings` etc. Never hardcode these keys. Macro context is shared.
 - Client code reads `activePortfolio` from `portfolioStore` and builds URLs with `withPortfolio()`. Components with per-person state are `key={activePortfolio}`'d in `Dashboard.tsx`.
 - `rj` is a virtual, **read-only** portfolio (Ryo + Joey): `isCombinedPortfolio()` / `portfolioMembers()` in `portfolios.ts`. It has no Redis keys of its own except its cached analysis; every write route must reject it (403) and the UI passes no `onEdit`/`onDelete`. Lots carry an in-memory `owner` there.
-- The password gate must only ever show Ryo's data.
+- Auth is server-side: `src/proxy.ts` rejects every `/api/*` request (except `/api/auth`) without a valid signed session cookie, and `page.tsx` renders only the login screen (no holdings) until the cookie verifies. Never add an API route outside `/api`, and never read portfolio data before auth.
 
 ### Next.js page caching
 - Use `export const dynamic = 'force-dynamic'` in route handlers that must always read fresh Redis data.
@@ -106,7 +106,8 @@ A personal Next.js investment portfolio tracker. Stocks, ETFs, and crypto in one
 | `UPSTASH_REDIS_REST_TOKEN` | Yes | Redis auth |
 | `GEMINI_API_KEY` | One of these | AI analysis + chatbot |
 | `ANTHROPIC_API_KEY` | One of these | AI analysis + chatbot (Claude Sonnet/Opus) |
-| `NEXT_PUBLIC_DASHBOARD_PASSWORD` | No | Client-side password gate (baked into bundle) |
+| `DASHBOARD_PASSWORD` | Yes in prod | Server-side login password (never `NEXT_PUBLIC_`) |
+| `AUTH_SECRET` | No | Session-cookie signing key (defaults to the password) |
 
 ---
 

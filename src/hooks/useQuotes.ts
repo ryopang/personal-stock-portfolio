@@ -5,7 +5,12 @@ import { useEffect, useState } from 'react';
 import { toYahooSymbol } from '@/lib/crypto-symbols';
 import type { Holding, Quote } from '@/lib/types';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const fetcher = (url: string) =>
+  fetch(url).then((r) => {
+    // Session expired: reload so the server renders the login screen
+    if (r.status === 401) window.location.reload();
+    return r.json();
+  });
 
 interface UseQuotesReturn {
   quotes: Quote[] | undefined;
