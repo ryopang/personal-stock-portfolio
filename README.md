@@ -157,7 +157,7 @@ A personal investment portfolio tracker built with Next.js. Track stocks, ETFs, 
 - **Year pills count down** from the latest year next to YTD, with MAX on the right.
 
 ### September 2026 — v2.0.0
-**Multi-portfolio release.** One dashboard now tracks three people's portfolios — Ryo, Joey and Shela — with identical functionality for each.
+**Multi-portfolio release.** One dashboard now tracks three people's portfolios (a combined r+J view was added in v2.2.0) — Ryo, Joey and Shela — with identical functionality for each.
 
 - **Portfolio switcher** — a Ryo | Joey | Shela toggle in the header switches Holdings, Charts and Analysis. It lives in the always-visible header (not the view tabs, which hide for an empty portfolio) so an empty portfolio can never strand you. Always starts on Ryo; switching keeps you on the same tab, clears mover/alert filters, and resets the chatbot conversation. Rapid A→B→A switching can't show stale data (the store is emptied on switch and late responses are discarded); a failed load shows a retry card instead of a misleading empty state.
 - **Fully isolated per-person data** — holdings, daily snapshots (trend chart) and cached AI analysis each live under per-person Redis keys (`portfolio:joey:*`, `portfolio:shela:*`). Ryo's keys are unchanged, so **no data migration**. Macro context stays shared.
@@ -290,16 +290,19 @@ src/
 ├── app/
 │   ├── api/
 │   │   ├── analysis/      # AI analysis endpoint (streaming, rate-limited)
+│   │   ├── auth/          # Login (POST, rate-limited) / logout (DELETE) — the only unauthenticated API route
 │   │   ├── chat/          # Streaming Investment Advisor chatbot endpoint
 │   │   ├── history/       # Per-symbol price history
-│   │   ├── holdings/      # CRUD for portfolio holdings (?portfolio=ryo|joey|shela)
+│   │   ├── holdings/      # CRUD for portfolio holdings (?portfolio=ryo|joey|shela|rj)
 │   │   ├── macro-context/ # Admin read/write for market commentary
 │   │   ├── news/          # Market and portfolio news
 │   │   ├── portfolio/     # Snapshot read/write
 │   │   ├── quotes/        # Batch live price fetching
 │   │   └── search/        # Symbol search (Yahoo Finance)
-│   ├── page.tsx           # Server component — SSR initial holdings
-│   └── layout.tsx
+│   ├── page.tsx           # Server component — verifies session; login screen or SSR initial holdings
+│   ├── layout.tsx
+│   └── ...
+├── proxy.ts               # Rejects every /api/* request without a valid session cookie (401)
 ├── components/
 │   ├── Dashboard.tsx          # Top-level client shell
 │   ├── PortfolioSummary.tsx
@@ -318,12 +321,13 @@ src/
 │   ├── AddHoldingModal.tsx
 │   ├── CSVImportModal.tsx
 │   ├── HistoricalImportModal.tsx
-│   ├── PasswordGate.tsx
+│   ├── PasswordGate.tsx       # Login form (shown only when logged out)
 │   └── SymbolSearch.tsx       # Autocomplete ticker search
 ├── hooks/
 │   ├── usePortfolio.ts    # Composites holdings + live quotes → HoldingWithMetrics[]
 │   └── useQuotes.ts
 ├── lib/
+│   ├── auth.ts            # HMAC-signed session cookie create/verify (Web Crypto)
 │   ├── yahoo.ts           # Yahoo Finance singleton
 │   ├── redis.ts           # Upstash Redis singleton
 │   ├── holdings-service.ts
