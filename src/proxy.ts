@@ -6,6 +6,9 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth';
 export async function proxy(req: NextRequest) {
   if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') return NextResponse.next();
   if (req.nextUrl.pathname === '/api/auth') return NextResponse.next();
+  // /api/day-change authenticates itself with a bearer token (DAY_CHANGE_TOKEN) and returns
+  // one number only. Anything without an Authorization header still needs the session cookie.
+  if (req.nextUrl.pathname === '/api/day-change' && req.headers.has('authorization')) return NextResponse.next();
 
   if (await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value)) return NextResponse.next();
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
